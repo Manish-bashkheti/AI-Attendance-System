@@ -1,9 +1,12 @@
 package com.aiattendance.backend;
-import com.aiattendance.backend.repository.StudentRepository;
+
 import java.util.List;
-import com.aiattendance.backend.repository.AttendanceRepository;
-import org.springframework.web.bind.annotation.PostMapping;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,49 +15,28 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/attendance")
 public class AttendanceController {
 
-    private final AttendanceRepository attendanceRepository;
-    private final StudentRepository studentRepository;
+    private final AttendanceService attendanceService;
 
-   public AttendanceController(
-        AttendanceRepository attendanceRepository,
-        StudentRepository studentRepository) {
-
-    this.attendanceRepository = attendanceRepository;
-    this.studentRepository = studentRepository;
-}
+    public AttendanceController(AttendanceService attendanceService) {
+        this.attendanceService = attendanceService;
+    }
 
     @PostMapping
-public Attendance markAttendance(@RequestBody Attendance attendance) {
-    return attendanceRepository.save(attendance);
-}
+    public Attendance markAttendance(@RequestBody Attendance attendance) {
+        return attendanceService.markAttendance(attendance);
+    }
 
-@GetMapping
-public List<AttendanceResponse> getAllAttendance() {
+    @GetMapping
+    public List<AttendanceResponse> getAllAttendance() {
+        return attendanceService.getAllAttendance();
+    }
 
-    List<Attendance> attendanceList = attendanceRepository.findAll();
+    @ExceptionHandler(AttendanceAlreadyMarkedException.class)
+    public ResponseEntity<String> handleAttendanceAlreadyMarked(
+            AttendanceAlreadyMarkedException exception) {
 
-    return attendanceList.stream()
-            .map(attendance -> {
-
-                Student student = studentRepository
-                        .findById(attendance.getStudentId())
-                        .orElse(null);
-
-                String studentName = student != null
-                        ? student.getName()
-                        : "Unknown";
-
-                return new AttendanceResponse(
-                        attendance.getAttendanceId(),
-                        attendance.getStudentId(),
-                        studentName,
-                        attendance.getClassId(),
-                        attendance.getSubjectId(),
-                        attendance.getAttendanceDate(),
-                        attendance.getStatus(),
-                        attendance.getMarkedTime()
-                );
-            })
-            .toList();
-}
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(exception.getMessage());
+    }
 }

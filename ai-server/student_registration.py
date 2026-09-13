@@ -23,7 +23,7 @@ if not cap.isOpened():
 
 print("Camera started.")
 print("Press 's' to save a face image.")
-print("Press 'q' to quit.")10
+print("Press 'q' to quit.")
 
 image_count = 0
 

@@ -32,11 +32,15 @@ public class AttendanceController {
     }
 
     @ExceptionHandler(AttendanceAlreadyMarkedException.class)
-    public ResponseEntity<String> handleAttendanceAlreadyMarked(
+    public ResponseEntity<AttendanceErrorResponse> handleAttendanceAlreadyMarked(
             AttendanceAlreadyMarkedException exception) {
+
+        AttendanceErrorResponse errorResponse = new AttendanceErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                exception.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
-                .body(exception.getMessage());
+                .body(errorResponse);
     }
 }

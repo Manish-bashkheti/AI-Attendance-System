@@ -9,7 +9,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
+
+
 
 @RestController
 @RequestMapping("/attendance")
@@ -30,6 +34,22 @@ public class AttendanceController {
     public List<AttendanceResponse> getAllAttendance() {
         return attendanceService.getAllAttendance();
     }
+    @GetMapping("/percentage/{studentId}")
+public double getAttendancePercentage(@PathVariable Integer studentId) {
+    return attendanceService.getAttendancePercentage(studentId);
+}
+@PostMapping("/mark-absent")
+public void markAbsentStudents(
+        @RequestParam Integer classId,
+        @RequestParam Integer subjectId,
+        @RequestParam String attendanceDate) {
+
+    attendanceService.markAbsentStudents(
+            classId,
+            subjectId,
+            java.time.LocalDate.parse(attendanceDate)
+    );
+}
 
     @ExceptionHandler(AttendanceAlreadyMarkedException.class)
     public ResponseEntity<AttendanceErrorResponse> handleAttendanceAlreadyMarked(

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import com.aiattendance.backend.repository.AttendanceRepository;
 import com.aiattendance.backend.repository.StudentRepository;
 import com.aiattendance.backend.repository.EnrollmentRepository;
+import com.aiattendance.backend.repository.AttendanceSessionRepository;
 
 @Service
 public class AttendanceService {
@@ -14,18 +15,31 @@ public class AttendanceService {
     private final AttendanceRepository attendanceRepository;
     private final StudentRepository studentRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final AttendanceSessionRepository attendanceSessionRepository;
 
-    public AttendanceService(
+ public AttendanceService(
         AttendanceRepository attendanceRepository,
         StudentRepository studentRepository,
-        EnrollmentRepository enrollmentRepository) {
+        EnrollmentRepository enrollmentRepository,
+        AttendanceSessionRepository attendanceSessionRepository) {
 
     this.attendanceRepository = attendanceRepository;
     this.studentRepository = studentRepository;
     this.enrollmentRepository = enrollmentRepository;
+    this.attendanceSessionRepository = attendanceSessionRepository;
 }
 
     public Attendance markAttendance(Attendance attendance) {
+        AttendanceSession session =
+        attendanceSessionRepository
+                .findById(attendance.getSessionId())
+                .orElseThrow(() ->
+                        new RuntimeException("Attendance session not found."));
+
+if (!"STARTED".equals(session.getStatus())) {
+    throw new RuntimeException(
+            "Attendance session is not active.");
+}
 
         boolean alreadyMarked =
                 attendanceRepository.existsByStudentIdAndClassIdAndSubjectIdAndAttendanceDate(

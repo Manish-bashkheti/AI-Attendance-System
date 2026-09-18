@@ -16,4 +16,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Integer>
             String status);
 
     long countByStudentId(Integer studentId);
+
+    boolean existsBySessionIdAndStudentId(
+            Integer sessionId,
+            Integer studentId);
 }

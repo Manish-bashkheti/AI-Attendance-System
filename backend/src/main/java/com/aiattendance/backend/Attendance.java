@@ -23,6 +23,7 @@ public class Attendance {
     private LocalDate attendanceDate;
     private String status;
     private LocalTime markedTime;
+    private Integer sessionId;
 
     public Attendance() {
     }
@@ -34,6 +35,7 @@ public class Attendance {
     public void setAttendanceId(Integer attendanceId) {
         this.attendanceId = attendanceId;
     }
+
 
     public Integer getStudentId() {
         return studentId;
@@ -82,4 +84,11 @@ public class Attendance {
     public void setMarkedTime(LocalTime markedTime) {
         this.markedTime = markedTime;
     }
+    public Integer getSessionId() {
+    return sessionId;
+}
+
+public void setSessionId(Integer sessionId) {
+    this.sessionId = sessionId;
+}
 }

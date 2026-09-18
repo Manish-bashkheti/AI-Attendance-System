@@ -6,10 +6,10 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.aiattendance.backend.repository.AttendanceSessionRepository;
-import com.aiattendance.backend.repository.TimetableRepository;
 import com.aiattendance.backend.repository.AttendanceRepository;
+import com.aiattendance.backend.repository.AttendanceSessionRepository;
 import com.aiattendance.backend.repository.EnrollmentRepository;
+import com.aiattendance.backend.repository.TimetableRepository;
 
 @Service
 public class AttendanceSessionService {
@@ -35,11 +35,12 @@ public class AttendanceSessionService {
             String dayOfWeek,
             LocalTime currentTime) {
 
-        List<Timetable> currentTimetables = timetableRepository
-                .findByDayOfWeekAndStartTimeLessThanEqualAndEndTimeGreaterThanEqual(
-                        dayOfWeek,
-                        currentTime,
-                        currentTime);
+        List<Timetable> currentTimetables =
+                timetableRepository
+                        .findByDayOfWeekAndStartTimeLessThanEqualAndEndTimeGreaterThanEqual(
+                                dayOfWeek,
+                                currentTime,
+                                currentTime);
 
         if (currentTimetables.isEmpty()) {
             throw new RuntimeException(
@@ -61,27 +62,46 @@ public class AttendanceSessionService {
         return attendanceSessionRepository.save(session);
     }
 
+    public AttendanceSession getActiveSession() {
+
+        List<AttendanceSession> activeSessions =
+                attendanceSessionRepository.findByStatus("STARTED");
+
+        if (activeSessions.isEmpty()) {
+            throw new RuntimeException(
+                    "No active attendance session found.");
+        }
+
+        return activeSessions.get(0);
+    }
+
     public AttendanceSession finishSession(Integer sessionId) {
 
-        AttendanceSession session = attendanceSessionRepository
-                .findById(sessionId)
-                .orElseThrow(() -> new RuntimeException("Attendance session not found."));
+        AttendanceSession session =
+                attendanceSessionRepository
+                        .findById(sessionId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Attendance session not found."));
 
         if ("FINISHED".equals(session.getStatus())) {
             throw new RuntimeException(
                     "Attendance session is already finished.");
         }
 
-        List<Enrollment> enrollments = enrollmentRepository.findByClassId(session.getClassId());
+        List<Enrollment> enrollments =
+                enrollmentRepository
+                        .findByClassId(session.getClassId());
 
         for (Enrollment enrollment : enrollments) {
 
             Integer studentId = enrollment.getStudentId();
 
-            boolean attendanceExists = attendanceRepository
-                    .existsBySessionIdAndStudentId(
-                            sessionId,
-                            studentId);
+            boolean attendanceExists =
+                    attendanceRepository
+                            .existsBySessionIdAndStudentId(
+                                    sessionId,
+                                    studentId);
 
             if (!attendanceExists) {
 
@@ -90,7 +110,8 @@ public class AttendanceSessionService {
                 attendance.setStudentId(studentId);
                 attendance.setClassId(session.getClassId());
                 attendance.setSubjectId(session.getSubjectId());
-                attendance.setAttendanceDate(session.getSessionDate());
+                attendance.setAttendanceDate(
+                        session.getSessionDate());
                 attendance.setStatus("ABSENT");
                 attendance.setMarkedTime(LocalTime.now());
                 attendance.setSessionId(sessionId);

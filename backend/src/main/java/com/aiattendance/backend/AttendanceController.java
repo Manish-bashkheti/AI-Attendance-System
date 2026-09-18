@@ -63,4 +63,17 @@ public void markAbsentStudents(
                 .status(HttpStatus.CONFLICT)
                 .body(errorResponse);
     }
+    @ExceptionHandler(RuntimeException.class)
+public ResponseEntity<AttendanceErrorResponse> handleRuntimeException(
+        RuntimeException exception) {
+
+    AttendanceErrorResponse errorResponse =
+            new AttendanceErrorResponse(
+                    HttpStatus.BAD_REQUEST.value(),
+                    exception.getMessage());
+
+    return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(errorResponse);
+}
 }

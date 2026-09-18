@@ -40,14 +40,11 @@ if (!"STARTED".equals(session.getStatus())) {
     throw new RuntimeException(
             "Attendance session is not active.");
 }
-
-        boolean alreadyMarked =
-                attendanceRepository.existsByStudentIdAndClassIdAndSubjectIdAndAttendanceDate(
-                        attendance.getStudentId(),
-                        attendance.getClassId(),
-                        attendance.getSubjectId(),
-                        attendance.getAttendanceDate()
-                );
+boolean alreadyMarked =
+        attendanceRepository.existsBySessionIdAndStudentId(
+                attendance.getSessionId(),
+                attendance.getStudentId()
+        );
 
         if (alreadyMarked) {
             throw new AttendanceAlreadyMarkedException(

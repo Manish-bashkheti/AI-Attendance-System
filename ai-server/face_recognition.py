@@ -1,26 +1,100 @@
 import cv2
 import os
+import requests
 from datetime import datetime
 
 YUNET_MODEL = "ai-server/models/face_detection_yunet_2023mar.onnx"
 SFACE_MODEL = "ai-server/models/face_recognition_sface_2021dec.onnx"
 STUDENTS_FOLDER = "ai-server/data/students"
 
+BACKEND_URL = "http://localhost:8080/attendance"
+
 registered_students = {}
 present_students = set()
 attendance_started = False
+current_session_id = 3
+
+def get_active_session():
+    try:
+        response = requests.get(
+            "http://localhost:8080/attendance-sessions/active",
+            timeout=5
+        )
+
+        if response.status_code == 200:
+            session_data = response.json()
+
+            return session_data["sessionId"]
+
+        print(
+            f"Could not get active session: "
+            f"{response.status_code} - {response.text}"
+        )
+
+    except requests.RequestException as exception:
+        print(f"Could not connect to backend: {exception}")
+
+    return None
+
+
+def send_attendance(student_id, session_id):
+    attendance_data = {
+        "studentId": int(student_id),
+        "classId": 1,
+        "subjectId": 1,
+        "attendanceDate": datetime.now().strftime("%Y-%m-%d"),
+        "status": "PRESENT",
+        "markedTime": datetime.now().strftime("%H:%M:%S"),
+        "sessionId": int(session_id)
+    }
+
+    try:
+        response = requests.post(
+            BACKEND_URL,
+            json=attendance_data,
+            timeout=5
+        )
+
+        if response.status_code == 200:
+            print(
+                f"Attendance sent successfully for student {student_id}."
+            )
+
+        elif response.status_code == 409:
+            print(
+                f"Attendance already marked for student {student_id}."
+            )
+
+        else:
+            print(
+                f"Attendance API error: "
+                f"{response.status_code} - {response.text}"
+            )
+
+    except requests.RequestException as exception:
+        print(f"Could not connect to backend: {exception}")
 
 
 def start_attendance():
     global attendance_started
+    global current_session_id
 
+    session_id = get_active_session()
+
+    if session_id is None:
+        print()
+        print("No active attendance session found.")
+        print("Start an attendance session from the backend first.")
+        return
+
+    current_session_id = session_id
     attendance_started = True
     present_students.clear()
 
     print()
     print("Attendance session started.")
+    print(f"Active session ID: {current_session_id}")
     print("Students can now be marked present.")
-
 
 def mark_present(student_id, student_name):
     if not attendance_started:
@@ -38,6 +112,11 @@ def mark_present(student_id, student_name):
         f"at {current_time}"
     )
 
+    send_attendance(
+        student_id,
+        current_session_id
+    )
+
 
 def finish_attendance():
     global attendance_started
@@ -46,22 +125,42 @@ def finish_attendance():
         print("Attendance session has not started.")
         return
 
-    attendance_started = False
+    try:
+        response = requests.post(
+            f"http://localhost:8080/attendance-sessions/"
+            f"{current_session_id}/finish",
+            timeout=5
+        )
 
-    print()
-    print("Attendance session finished.")
-    print()
+        if response.status_code == 200:
+            attendance_started = False
 
-    for student_id, student_data in registered_students.items():
+            print()
+            print("Attendance session finished successfully.")
+            print(f"Session ID: {current_session_id}")
+            print()
 
-        name = student_data["name"]
+            for student_id, student_data in registered_students.items():
 
-        if student_id in present_students:
-            print(f"{name} ({student_id}) - PRESENT")
+                name = student_data["name"]
+
+                if student_id in present_students:
+                    print(f"{name} ({student_id}) - PRESENT")
+                else:
+                    print(f"{name} ({student_id}) - ABSENT")
+
+            print()
+
         else:
-            print(f"{name} ({student_id}) - ABSENT")
+            print(
+                f"Could not finish attendance session: "
+                f"{response.status_code} - {response.text}"
+            )
 
-    print()
+    except requests.RequestException as exception:
+        print(
+            f"Could not connect to backend: {exception}"
+        )
 
 
 # --------------------------------------------------

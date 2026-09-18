@@ -12,8 +12,10 @@ BACKEND_URL = "http://localhost:8080/attendance"
 registered_students = {}
 present_students = set()
 attendance_started = False
-current_session_id = 3
 
+current_session_id = None
+current_class_id = None
+current_subject_id = None
 def get_active_session():
     try:
         response = requests.get(
@@ -24,7 +26,7 @@ def get_active_session():
         if response.status_code == 200:
             session_data = response.json()
 
-            return session_data["sessionId"]
+            return session_data
 
         print(
             f"Could not get active session: "
@@ -40,8 +42,8 @@ def get_active_session():
 def send_attendance(student_id, session_id):
     attendance_data = {
         "studentId": int(student_id),
-        "classId": 1,
-        "subjectId": 1,
+        "classId": int(current_class_id),
+        "subjectId": int(current_subject_id),
         "attendanceDate": datetime.now().strftime("%Y-%m-%d"),
         "status": "PRESENT",
         "markedTime": datetime.now().strftime("%H:%M:%S"),
@@ -72,29 +74,38 @@ def send_attendance(student_id, session_id):
             )
 
     except requests.RequestException as exception:
-        print(f"Could not connect to backend: {exception}")
-
+        print(
+            f"Could not connect to backend: {exception}"
+        )
 
 def start_attendance():
     global attendance_started
     global current_session_id
+    global current_class_id
+    global current_subject_id
 
-    session_id = get_active_session()
+    session_data = get_active_session()
 
-    if session_id is None:
+    if session_data is None:
         print()
         print("No active attendance session found.")
         print("Start an attendance session from the backend first.")
         return
 
-    current_session_id = session_id
+    current_session_id = session_data["sessionId"]
+    current_class_id = session_data["classId"]
+    current_subject_id = session_data["subjectId"]
+
     attendance_started = True
     present_students.clear()
 
     print()
     print("Attendance session started.")
     print(f"Active session ID: {current_session_id}")
+    print(f"Class ID: {current_class_id}")
+    print(f"Subject ID: {current_subject_id}")
     print("Students can now be marked present.")
+
 
 def mark_present(student_id, student_name):
     if not attendance_started:

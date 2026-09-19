@@ -1,95 +1,149 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 function Login() {
-  return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4 relative overflow-hidden">
+    const navigate = useNavigate();
 
-      {/* Background Glow */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl"></div>
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"></div>
+    const handleLogin = async (event) => {
+        event.preventDefault();
 
-      {/* Login Card */}
-      <div className="relative w-full max-w-md">
+        setError("");
+        setLoading(true);
 
-        <div className="bg-slate-900/90 border border-slate-700/60 backdrop-blur-xl rounded-3xl shadow-2xl p-8">
+        try {
+            const response = await fetch(
+                "http://localhost:8080/auth/login",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                }
+            );
 
-          {/* Logo */}
-          <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
-              <span className="text-2xl font-bold text-white">
-                AI
-              </span>
+            if (!response.ok) {
+                const message = await response.text();
+                throw new Error(message || "Login failed.");
+            }
+
+            const data = await response.json();
+
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("role", data.role);
+            localStorage.setItem("userId", data.userId);
+
+            if (data.studentId !== null) {
+                localStorage.setItem(
+                    "studentId",
+                    data.studentId
+                );
+            }
+
+            if (data.teacherId !== null) {
+                localStorage.setItem(
+                    "teacherId",
+                    data.teacherId
+                );
+            }
+
+            if (data.role === "ADMIN") {
+                navigate("/admin");
+            } else {
+                setError("This role does not have a dashboard yet.");
+            }
+
+        } catch (error) {
+            setError(
+                error.message || "Unable to connect to server."
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
+
+            <div className="w-full max-w-md">
+
+                <div className="mb-8 text-center">
+                    <h1 className="text-3xl font-bold text-white">
+                        AI Attendance System
+                    </h1>
+
+                    <p className="mt-2 text-slate-400">
+                        Sign in to your account
+                    </p>
+                </div>
+
+                <form
+                    onSubmit={handleLogin}
+                    className="rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl"
+                >
+
+                    <div className="mb-5">
+                        <label className="mb-2 block text-sm text-slate-300">
+                            Email
+                        </label>
+
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(event) =>
+                                setEmail(event.target.value)
+                            }
+                            placeholder="Enter your email"
+                            required
+                            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
+                        />
+                    </div>
+
+                    <div className="mb-5">
+                        <label className="mb-2 block text-sm text-slate-300">
+                            Password
+                        </label>
+
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(event) =>
+                                setPassword(event.target.value)
+                            }
+                            placeholder="Enter your password"
+                            required
+                            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
+                        />
+                    </div>
+
+                    {error && (
+                        <div className="mb-5 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                            {error}
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {loading ? "Signing in..." : "Sign In"}
+                    </button>
+
+                </form>
+
             </div>
-          </div>
-
-          {/* Heading */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white">
-              AI Attendance
-            </h1>
-
-            <p className="text-slate-400 mt-2 text-sm">
-              Smart & Secure Attendance Management
-            </p>
-          </div>
-
-          {/* Email */}
-          <div className="mb-5">
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Email Address
-            </label>
-
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="w-full px-4 py-3.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-            />
-          </div>
-
-          {/* Password */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-medium text-slate-300">
-                Password
-              </label>
-
-              <button className="text-sm text-blue-400 hover:text-blue-300 transition">
-                Forgot Password?
-              </button>
-            </div>
-
-            <input
-              type="password"
-              placeholder="Enter your password"
-              className="w-full px-4 py-3.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-            />
-          </div>
-
-          {/* Login Button */}
-          <button className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold shadow-lg shadow-blue-600/20 hover:shadow-blue-500/40 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200">
-            Sign In
-          </button>
-
-          {/* Roles */}
-          <div className="mt-7 pt-6 border-t border-slate-800 text-center">
-            <p className="text-xs text-slate-500">
-              Secure access for
-            </p>
-
-            <p className="text-sm text-slate-300 mt-1">
-              Admin • Teacher • Student
-            </p>
-          </div>
 
         </div>
-
-        {/* Footer */}
-        <p className="text-center text-xs text-slate-600 mt-6">
-          © 2026 AI Attendance System
-        </p>
-
-      </div>
-    </div>
-  );
+    );
 }
 
 export default Login;

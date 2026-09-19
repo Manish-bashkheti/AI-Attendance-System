@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { getStudents } from "../services/api";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE_URL = "http://localhost:8080";
 
 function StudentManagement() {
+
+  const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -208,9 +211,7 @@ function StudentManagement() {
             <p className="text-sm text-slate-400">Student Management</p>
           </div>
 
-          <button className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition">
-            Back
-          </button>
+          <button onClick={() => navigate("/admin")}>Back</button>
         </div>
       </header>
 
@@ -744,65 +745,51 @@ function StudentManagement() {
           </div>
         )}
         {/* Delete Confirmation Modal */}
-{deletingStudent && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+        {deletingStudent && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+            <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+              <div className="mb-6">
+                <h3 className="text-2xl font-bold">Delete Student</h3>
 
-    <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+                <p className="text-slate-400 mt-2">
+                  Are you sure you want to delete this student?
+                </p>
+              </div>
 
-      <div className="mb-6">
+              <div className="bg-slate-800/60 rounded-xl p-4 mb-6">
+                <p className="font-semibold">{deletingStudent.name}</p>
 
-        <h3 className="text-2xl font-bold">
-          Delete Student
-        </h3>
+                <p className="text-sm text-slate-400 mt-1">
+                  Student ID: {deletingStudent.studentId}
+                </p>
+              </div>
 
-        <p className="text-slate-400 mt-2">
-          Are you sure you want to delete this student?
-        </p>
+              <p className="text-sm text-red-400 mb-6">
+                This action cannot be undone.
+              </p>
 
-      </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeletingStudent(null)}
+                  disabled={deleting}
+                  className="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
 
-      <div className="bg-slate-800/60 rounded-xl p-4 mb-6">
-
-        <p className="font-semibold">
-          {deletingStudent.name}
-        </p>
-
-        <p className="text-sm text-slate-400 mt-1">
-          Student ID: {deletingStudent.studentId}
-        </p>
-
-      </div>
-
-      <p className="text-sm text-red-400 mb-6">
-        This action cannot be undone.
-      </p>
-
-      <div className="flex justify-end gap-3">
-
-        <button
-          type="button"
-          onClick={() => setDeletingStudent(null)}
-          disabled={deleting}
-          className="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition disabled:opacity-50"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          className="px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 font-semibold transition disabled:opacity-50"
-        >
-          {deleting ? "Deleting..." : "Delete Student"}
-        </button>
-
-      </div>
-
-    </div>
-
-  </div>
-)}
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 font-semibold transition disabled:opacity-50"
+                >
+                  {deleting ? "Deleting..." : "Delete Student"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

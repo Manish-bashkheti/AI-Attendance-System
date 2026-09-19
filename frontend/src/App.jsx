@@ -8,6 +8,7 @@ import ClassManagement from "./pages/ClassManagement";
 import SubjectManagement from "./pages/SubjectManagement";
 import TimetableManagement from "./pages/TimetableManagement";
 import AttendanceManagement from "./pages/AttendanceManagement";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
@@ -15,15 +16,68 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
-        <Route path="/admin" element={<AdminDashboard />} />
+       <Route
+    path="/admin"
+    element={
+        <ProtectedRoute allowedRole="ADMIN">
+            <AdminDashboard />
+        </ProtectedRoute>
+    }
+/>
 
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/admin/students" element={<StudentManagement />} />
-        <Route path="/admin/teachers" element={<TeacherManagement />} />
-        <Route path="/admin/classes" element={<ClassManagement />} />
-        <Route path="/admin/subjects" element={<SubjectManagement />} />
-        <Route path="/admin/timetable" element={<TimetableManagement />} />
-        <Route path="/admin/attendance" element={<AttendanceManagement />} />
+<Route
+    path="/admin/students"
+    element={
+        <ProtectedRoute allowedRole="ADMIN">
+            <StudentManagement />
+        </ProtectedRoute>
+    }
+/>
+
+<Route
+    path="/admin/teachers"
+    element={
+        <ProtectedRoute allowedRole="ADMIN">
+            <TeacherManagement />
+        </ProtectedRoute>
+    }
+/>
+
+<Route
+    path="/admin/classes"
+    element={
+        <ProtectedRoute allowedRole="ADMIN">
+            <ClassManagement />
+        </ProtectedRoute>
+    }
+/>
+
+<Route
+    path="/admin/subjects"
+    element={
+        <ProtectedRoute allowedRole="ADMIN">
+            <SubjectManagement />
+        </ProtectedRoute>
+    }
+/>
+
+<Route
+    path="/admin/timetable"
+    element={
+        <ProtectedRoute allowedRole="ADMIN">
+            <TimetableManagement />
+        </ProtectedRoute>
+    }
+/>
+
+<Route
+    path="/admin/attendance"
+    element={
+        <ProtectedRoute allowedRole="ADMIN">
+            <AttendanceManagement />
+        </ProtectedRoute>
+    }
+/>
       </Routes>
     </BrowserRouter>
   );

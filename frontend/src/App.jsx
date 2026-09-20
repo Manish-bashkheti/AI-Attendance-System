@@ -10,6 +10,7 @@ import TimetableManagement from "./pages/TimetableManagement";
 import AttendanceManagement from "./pages/AttendanceManagement";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TeacherDashboard from "./pages/TeacherDashboard";
+import TeacherLogin from "./pages/TeacherLogin";
 
 function App() {
   return (
@@ -86,6 +87,10 @@ function App() {
             <TeacherDashboard />
         </ProtectedRoute>
     }
+/>
+<Route
+    path="/teacher-login"
+    element={<TeacherLogin />}
 />
       </Routes>
     </BrowserRouter>

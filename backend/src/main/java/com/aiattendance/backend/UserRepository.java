@@ -9,4 +9,6 @@ import com.aiattendance.backend.User;
 public interface UserRepository extends JpaRepository<User, Integer> {
 
     Optional<User> findByEmail(String email);
+
+    Optional<User> findByTeacherId(Integer teacherId);
 }

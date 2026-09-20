@@ -2,7 +2,7 @@ package com.aiattendance.backend;
 
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,9 +21,14 @@ import com.aiattendance.backend.repository.TeacherRepository;
 public class TeacherController {
 
     private final TeacherRepository teacherRepository;
+    private final TeacherService teacherService;
 
-    public TeacherController(TeacherRepository teacherRepository) {
+    public TeacherController(
+            TeacherRepository teacherRepository,
+            TeacherService teacherService) {
+
         this.teacherRepository = teacherRepository;
+        this.teacherService = teacherService;
     }
 
     // Get all teachers
@@ -66,5 +71,13 @@ public class TeacherController {
         }
 
         teacherRepository.deleteById(teacherId);
+    }
+
+    // Create teacher login account
+    @PostMapping("/{teacherId}/create-account")
+    public ResponseEntity<?> createTeacherAccount(
+            @PathVariable Integer teacherId) {
+
+        return teacherService.createTeacherAccount(teacherId);
     }
 }

@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.Map;
+import org.springframework.security.core.Authentication;
 
 import com.aiattendance.backend.repository.UserRepository;
 
@@ -65,4 +67,30 @@ public class AuthController {
 
         return ResponseEntity.ok(response);
     }
+    @PostMapping("/verify-password")
+public ResponseEntity<?> verifyPassword(
+        @RequestBody Map<String, String> request,
+        Authentication authentication) {
+
+    String password = request.get("password");
+
+    if (password == null || password.isBlank()) {
+        return ResponseEntity.badRequest()
+                .body("Password is required.");
+    }
+
+    User user = (User) authentication.getPrincipal();
+
+    if (!"ADMIN".equals(user.getRole())) {
+        return ResponseEntity.status(403)
+                .body("Only admin can perform this action.");
+    }
+
+    if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+        return ResponseEntity.status(401)
+                .body("Invalid admin password.");
+    }
+
+    return ResponseEntity.ok("Admin verification successful.");
+}
 }

@@ -9,6 +9,7 @@ import SubjectManagement from "./pages/SubjectManagement";
 import TimetableManagement from "./pages/TimetableManagement";
 import AttendanceManagement from "./pages/AttendanceManagement";
 import ProtectedRoute from "./components/ProtectedRoute";
+import TeacherDashboard from "./pages/TeacherDashboard";
 
 function App() {
   return (
@@ -75,6 +76,14 @@ function App() {
     element={
         <ProtectedRoute allowedRole="ADMIN">
             <AttendanceManagement />
+        </ProtectedRoute>
+    }
+/>
+<Route
+    path="/teacher"
+    element={
+        <ProtectedRoute allowedRole="TEACHER">
+            <TeacherDashboard />
         </ProtectedRoute>
     }
 />

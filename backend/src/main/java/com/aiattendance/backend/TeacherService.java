@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -33,41 +35,48 @@ public class TeacherService {
     public List<Teacher> getAllTeachers() {
         return teacherRepository.findAll();
     }
-    public ResponseEntity<?> createTeacherAccount(
-        Integer teacherId) {
 
-    Teacher teacher = teacherRepository
-            .findById(teacherId)
-            .orElseThrow(
-                    () -> new RuntimeException("Teacher not found")
-            );
+    public ResponseEntity<?> createTeacherAccount(Integer teacherId) {
 
-    if (userRepository
-            .findByEmail(teacher.getEmail())
-            .isPresent()) {
+        Teacher teacher = teacherRepository
+                .findById(teacherId)
+                .orElseThrow(
+                        () -> new RuntimeException("Teacher not found")
+                );
 
-        return ResponseEntity
-                .badRequest()
-                .body("A login account already exists for this teacher.");
+        if (userRepository
+                .findByEmail(teacher.getEmail())
+                .isPresent()) {
+
+            return ResponseEntity
+                    .badRequest()
+                    .body("A login account already exists for this teacher.");
+        }
+
+        if (teacher.getDateOfBirth() == null) {
+            return ResponseEntity
+                    .badRequest()
+                    .body("Date of birth is required to create the teacher account.");
+        }
+
+        String initialPassword = teacher.getDateOfBirth()
+                .format(DateTimeFormatter.ofPattern("ddMMyyyy"));
+
+        User user = new User();
+
+        user.setEmail(teacher.getEmail());
+        user.setPasswordHash(
+                passwordEncoder.encode(initialPassword)
+        );
+        user.setRole("TEACHER");
+        user.setTeacherId(teacher.getTeacherId());
+
+        userRepository.save(user);
+
+        return ResponseEntity.ok(
+                "Teacher account created successfully. "
+                + "Initial password: "
+                + initialPassword
+        );
     }
-
-    String temporaryPassword = "Teacher@123";
-
-    User user = new User();
-
-    user.setEmail(teacher.getEmail());
-    user.setPasswordHash(
-            passwordEncoder.encode(temporaryPassword)
-    );
-    user.setRole("TEACHER");
-    user.setTeacherId(teacher.getTeacherId());
-
-    userRepository.save(user);
-
-    return ResponseEntity.ok(
-            "Teacher account created successfully. "
-            + "Temporary password: "
-            + temporaryPassword
-    );
-}
 }

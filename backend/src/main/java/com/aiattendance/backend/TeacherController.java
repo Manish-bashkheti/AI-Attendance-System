@@ -56,7 +56,44 @@ public class TeacherController {
                         );
 
         existingTeacher.setName(teacher.getName());
+        existingTeacher.setDateOfBirth(teacher.getDateOfBirth());
+        existingTeacher.setGender(teacher.getGender());
+        existingTeacher.setPhone(teacher.getPhone());
         existingTeacher.setEmail(teacher.getEmail());
+        existingTeacher.setAddress(teacher.getAddress());
+        existingTeacher.setDepartment(teacher.getDepartment());
+
+        existingTeacher.setUgQualification(
+                teacher.getUgQualification()
+        );
+
+        existingTeacher.setUgSpecialization(
+                teacher.getUgSpecialization()
+        );
+
+        existingTeacher.setPgQualification(
+                teacher.getPgQualification()
+        );
+
+        existingTeacher.setPgSpecialization(
+                teacher.getPgSpecialization()
+        );
+
+        existingTeacher.setDoctorate(
+                teacher.getDoctorate()
+        );
+
+        existingTeacher.setCertifications(
+                teacher.getCertifications()
+        );
+
+        existingTeacher.setExperience(
+                teacher.getExperience()
+        );
+
+        existingTeacher.setJoiningDate(
+                teacher.getJoiningDate()
+        );
 
         return teacherRepository.save(existingTeacher);
     }

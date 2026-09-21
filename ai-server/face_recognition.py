@@ -1,11 +1,28 @@
 import cv2
 import os
 import requests
+import time
 from datetime import datetime
 
-YUNET_MODEL = "ai-server/models/face_detection_yunet_2023mar.onnx"
-SFACE_MODEL = "ai-server/models/face_recognition_sface_2021dec.onnx"
-STUDENTS_FOLDER = "ai-server/data/students"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+YUNET_MODEL = os.path.join(
+    BASE_DIR,
+    "models",
+    "face_detection_yunet_2023mar.onnx"
+)
+
+SFACE_MODEL = os.path.join(
+    BASE_DIR,
+    "models",
+    "face_recognition_sface_2021dec.onnx"
+)
+
+STUDENTS_FOLDER = os.path.join(
+    BASE_DIR,
+    "data",
+    "students"
+)
 
 BACKEND_URL = "http://localhost:8080/attendance"
 
@@ -16,6 +33,47 @@ attendance_started = False
 current_session_id = None
 current_class_id = None
 current_subject_id = None
+
+last_session_check = 0
+SESSION_CHECK_INTERVAL = 2
+def sync_active_session():
+    global attendance_started
+    global current_session_id
+    global current_class_id
+    global current_subject_id
+
+    session_data = get_active_session()
+
+    if session_data is None:
+        if attendance_started:
+            attendance_started = False
+            current_session_id = None
+            current_class_id = None
+            current_subject_id = None
+
+            present_students.clear()
+
+            print()
+            print("Attendance session is no longer active.")
+
+        return
+
+    session_id = session_data["sessionId"]
+
+    if not attendance_started or current_session_id != session_id:
+        current_session_id = session_id
+        current_class_id = session_data["classId"]
+        current_subject_id = session_data["subjectId"]
+
+        attendance_started = True
+        present_students.clear()
+
+        print()
+        print("Active attendance session detected.")
+        print(f"Session ID: {current_session_id}")
+        print(f"Class ID: {current_class_id}")
+        print(f"Subject ID: {current_subject_id}")
+        print("AI attendance is now active.")
 def get_active_session():
     try:
         response = requests.get(
@@ -296,7 +354,6 @@ print("Press 'q' to quit.")
 # --------------------------------------------------
 # Main camera loop
 # --------------------------------------------------
-
 while True:
 
     ret, frame = cap.read()
@@ -305,6 +362,20 @@ while True:
 
         print("Failed to receive frame!")
         break
+
+    current_time = time.time()
+
+    if current_time - last_session_check >= SESSION_CHECK_INTERVAL:
+        sync_active_session()
+        last_session_check = current_time
+
+    height, width = frame.shape[:2]
+
+    detector.setInputSize(
+        (width, height)
+    )
+
+    _, faces = detector.detect(frame)
 
 
     height, width = frame.shape[:2]

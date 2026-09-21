@@ -31,36 +31,38 @@ public class AttendanceSessionService {
         this.enrollmentRepository = enrollmentRepository;
     }
 
-    public AttendanceSession startSession(
-            String dayOfWeek,
-            LocalTime currentTime) {
+public AttendanceSession startSession(
+        String dayOfWeek,
+        LocalTime currentTime,
+        Integer teacherId) {
 
-        List<Timetable> currentTimetables =
-                timetableRepository
-                        .findByDayOfWeekAndStartTimeLessThanEqualAndEndTimeGreaterThanEqual(
-                                dayOfWeek,
-                                currentTime,
-                                currentTime);
+    List<Timetable> currentTimetables =
+            timetableRepository
+                    .findByDayOfWeekAndTeacherIdAndStartTimeLessThanEqualAndEndTimeGreaterThanEqual(
+                            dayOfWeek,
+                            teacherId,
+                            currentTime,
+                            currentTime);
 
-        if (currentTimetables.isEmpty()) {
-            throw new RuntimeException(
-                    "No timetable found for the current time.");
-        }
-
-        Timetable timetable = currentTimetables.get(0);
-
-        AttendanceSession session = new AttendanceSession();
-
-        session.setClassId(timetable.getClassId());
-        session.setSubjectId(timetable.getSubjectId());
-        session.setTeacherId(timetable.getTeacherId());
-
-        session.setSessionDate(LocalDate.now());
-        session.setStartTime(currentTime);
-        session.setStatus("STARTED");
-
-        return attendanceSessionRepository.save(session);
+    if (currentTimetables.isEmpty()) {
+        throw new RuntimeException(
+                "No timetable found for this teacher at the current time.");
     }
+
+    Timetable timetable = currentTimetables.get(0);
+
+    AttendanceSession session = new AttendanceSession();
+
+    session.setClassId(timetable.getClassId());
+    session.setSubjectId(timetable.getSubjectId());
+    session.setTeacherId(timetable.getTeacherId());
+
+    session.setSessionDate(LocalDate.now());
+    session.setStartTime(currentTime);
+    session.setStatus("STARTED");
+
+    return attendanceSessionRepository.save(session);
+}
 
     public AttendanceSession getActiveSession() {
 

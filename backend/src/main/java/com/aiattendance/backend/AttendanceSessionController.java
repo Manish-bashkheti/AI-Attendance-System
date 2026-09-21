@@ -10,7 +10,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
+
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/attendance-sessions")
 public class AttendanceSessionController {
@@ -24,17 +27,29 @@ public class AttendanceSessionController {
                 attendanceSessionService;
     }
 
-    @PostMapping("/start")
-    public AttendanceSession startSession(
-            @RequestParam String dayOfWeek,
-            @RequestParam String time) {
+ @PostMapping("/start")
+public ResponseEntity<?> startSession(
+        @RequestParam String dayOfWeek,
+        @RequestParam String time,
+        @RequestParam Integer teacherId) {
 
-        return attendanceSessionService.startSession(
-                dayOfWeek,
-                LocalTime.parse(time)
-        );
+    try {
+        AttendanceSession session =
+                attendanceSessionService.startSession(
+                        dayOfWeek,
+                        LocalTime.parse(time),
+                        teacherId
+                );
+
+        return ResponseEntity.ok(session);
+
+    } catch (RuntimeException exception) {
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(exception.getMessage());
     }
-
+}
    @GetMapping("/active")
 public ResponseEntity<?> getActiveSession() {
 

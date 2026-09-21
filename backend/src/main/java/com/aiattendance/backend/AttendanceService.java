@@ -70,16 +70,17 @@ boolean alreadyMarked =
                             ? student.getName()
                             : "Unknown";
 
-                    return new AttendanceResponse(
-                            attendance.getAttendanceId(),
-                            attendance.getStudentId(),
-                            studentName,
-                            attendance.getClassId(),
-                            attendance.getSubjectId(),
-                            attendance.getAttendanceDate(),
-                            attendance.getStatus(),
-                            attendance.getMarkedTime()
-                    );
+                   return new AttendanceResponse(
+        attendance.getAttendanceId(),
+        attendance.getStudentId(),
+        studentName,
+        attendance.getClassId(),
+        attendance.getSubjectId(),
+        attendance.getAttendanceDate(),
+        attendance.getStatus(),
+        attendance.getMarkedTime(),
+        attendance.getSessionId()
+);
                 })
                 .toList();
     }

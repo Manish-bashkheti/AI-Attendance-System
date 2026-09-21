@@ -11,6 +11,7 @@ import AttendanceManagement from "./pages/AttendanceManagement";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherLogin from "./pages/TeacherLogin";
+import TeacherProfile from "./pages/TeacherProfile";
 
 function App() {
   return (
@@ -91,6 +92,14 @@ function App() {
 <Route
     path="/teacher-login"
     element={<TeacherLogin />}
+/>
+<Route
+    path="/teacher/profile"
+    element={
+        <ProtectedRoute allowedRole="TEACHER">
+            <TeacherProfile />
+        </ProtectedRoute>
+    }
 />
       </Routes>
     </BrowserRouter>

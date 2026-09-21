@@ -12,4 +12,10 @@ public interface TimetableRepository extends JpaRepository<Timetable, Integer> {
             String dayOfWeek,
             LocalTime currentTime,
             LocalTime currentTime2);
+
+    List<Timetable> findByDayOfWeekAndTeacherIdAndStartTimeLessThanEqualAndEndTimeGreaterThanEqual(
+            String dayOfWeek,
+            Integer teacherId,
+            LocalTime currentTime,
+            LocalTime currentTime2);
 }

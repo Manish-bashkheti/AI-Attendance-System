@@ -13,6 +13,7 @@ public class AttendanceResponse {
     private LocalDate attendanceDate;
     private String status;
     private LocalTime markedTime;
+    private Integer sessionId;
 
     public AttendanceResponse() {
     }
@@ -23,9 +24,11 @@ public class AttendanceResponse {
             String studentName,
             Integer classId,
             Integer subjectId,
+
             LocalDate attendanceDate,
             String status,
-            LocalTime markedTime) {
+            LocalTime markedTime,
+            Integer sessionId) {
 
         this.attendanceId = attendanceId;
         this.studentId = studentId;
@@ -35,6 +38,7 @@ public class AttendanceResponse {
         this.attendanceDate = attendanceDate;
         this.status = status;
         this.markedTime = markedTime;
+        this.sessionId = sessionId;
     }
 
     public Integer getAttendanceId() {
@@ -67,5 +71,9 @@ public class AttendanceResponse {
 
     public LocalTime getMarkedTime() {
         return markedTime;
+    }
+
+    public Integer getSessionId() {
+        return sessionId;
     }
 }

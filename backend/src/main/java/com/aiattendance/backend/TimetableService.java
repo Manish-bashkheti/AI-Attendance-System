@@ -30,17 +30,14 @@ public class TimetableService {
         this.teacherRepository = teacherRepository;
     }
 
-    // Create or save timetable
     public Timetable saveTimetable(Timetable timetable) {
         return timetableRepository.save(timetable);
     }
 
-    // Get all timetables
     public List<Timetable> getAllTimetables() {
         return timetableRepository.findAll();
     }
 
-    // Get timetable by ID
     public Timetable getTimetableById(Integer timetableId) {
         return timetableRepository.findById(timetableId)
                 .orElseThrow(
@@ -48,7 +45,6 @@ public class TimetableService {
                 );
     }
 
-    // Delete timetable
     public void deleteTimetable(Integer timetableId) {
 
         if (!timetableRepository.existsById(timetableId)) {
@@ -58,7 +54,6 @@ public class TimetableService {
         timetableRepository.deleteById(timetableId);
     }
 
-    // Get current timetable
     public List<TimetableResponse> getCurrentTimetable(
             String dayOfWeek,
             LocalTime currentTime) {
@@ -72,55 +67,79 @@ public class TimetableService {
                         );
 
         return timetables.stream()
-                .map(timetable -> {
-
-                    Class classEntity =
-                            classRepository
-                                    .findById(timetable.getClassId())
-                                    .orElse(null);
-
-                    Subject subject =
-                            subjectRepository
-                                    .findById(timetable.getSubjectId())
-                                    .orElse(null);
-
-                    Teacher teacher =
-                            teacherRepository
-                                    .findById(timetable.getTeacherId())
-                                    .orElse(null);
-
-                    String className =
-                            classEntity != null
-                                    ? classEntity.getBranch()
-                                        + " "
-                                        + classEntity.getSemester()
-                                        + " "
-                                        + classEntity.getSection()
-                                    : "Unknown";
-
-                    String subjectName =
-                            subject != null
-                                    ? subject.getSubjectName()
-                                    : "Unknown";
-
-                    String teacherName =
-                            teacher != null
-                                    ? teacher.getName()
-                                    : "Unknown";
-
-                    return new TimetableResponse(
-                            timetable.getTimetableId(),
-                            timetable.getClassId(),
-                            className,
-                            timetable.getSubjectId(),
-                            subjectName,
-                            timetable.getTeacherId(),
-                            teacherName,
-                            timetable.getDayOfWeek(),
-                            timetable.getStartTime(),
-                            timetable.getEndTime()
-                    );
-                })
+                .map(this::convertToResponse)
                 .toList();
+    }
+
+    public List<TimetableResponse> getTeacherDayTimetable(
+            Integer teacherId,
+            String dayOfWeek) {
+
+        List<Timetable> timetables =
+                timetableRepository
+                        .findByDayOfWeekAndTeacherId(
+                                dayOfWeek,
+                                teacherId
+                        );
+
+        return timetables.stream()
+                .sorted(
+                        (first, second) ->
+                                first.getStartTime()
+                                        .compareTo(second.getStartTime())
+                )
+                .map(this::convertToResponse)
+                .toList();
+    }
+
+    private TimetableResponse convertToResponse(
+            Timetable timetable) {
+
+        Class classEntity =
+                classRepository
+                        .findById(timetable.getClassId())
+                        .orElse(null);
+
+        Subject subject =
+                subjectRepository
+                        .findById(timetable.getSubjectId())
+                        .orElse(null);
+
+        Teacher teacher =
+                teacherRepository
+                        .findById(timetable.getTeacherId())
+                        .orElse(null);
+
+        String className =
+                classEntity != null
+                        ? classEntity.getBranch()
+                            + " "
+                            + classEntity.getSemester()
+                            + " "
+                            + classEntity.getSection()
+                        : "Unknown";
+
+        String subjectName =
+                subject != null
+                        ? subject.getSubjectName()
+                        : "Unknown";
+
+        String teacherName =
+                teacher != null
+                        ? teacher.getName()
+                        : "Unknown";
+
+        return new TimetableResponse(
+                timetable.getTimetableId(),
+                timetable.getClassId(),
+                className,
+                timetable.getSubjectId(),
+                subjectName,
+                timetable.getTeacherId(),
+                teacherName,
+                timetable.getDayOfWeek(),
+                timetable.getStartTime(),
+                timetable.getEndTime()
+        );
     }
 }

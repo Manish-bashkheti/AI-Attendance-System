@@ -18,4 +18,8 @@ public interface TimetableRepository extends JpaRepository<Timetable, Integer> {
             Integer teacherId,
             LocalTime currentTime,
             LocalTime currentTime2);
+
+    List<Timetable> findByDayOfWeekAndTeacherId(
+            String dayOfWeek,
+            Integer teacherId);
 }

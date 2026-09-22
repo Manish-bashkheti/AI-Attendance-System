@@ -28,12 +28,13 @@ function StudentManagement() {
   const [deletingStudent, setDeletingStudent] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const [formData, setFormData] = useState({
-    studentId: "",
-    name: "",
-    branch: "",
-    semester: "",
-  });
+const [formData, setFormData] = useState({
+  studentId: "",
+  name: "",
+  branch: "",
+  semester: "",
+  section: "",
+});
 
   useEffect(() => {
     loadStudents();
@@ -96,11 +97,12 @@ function StudentManagement() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          studentId: Number(formData.studentId),
-          name: formData.name,
-          branch: formData.branch,
-          semester: Number(formData.semester),
-        }),
+  studentId: Number(formData.studentId),
+  name: formData.name,
+  branch: formData.branch,
+  semester: Number(formData.semester),
+  section: formData.section,
+}),
       });
 
       if (!response.ok) {
@@ -109,12 +111,13 @@ function StudentManagement() {
 
       await response.json();
 
-      setFormData({
-        studentId: "",
-        name: "",
-        branch: "",
-        semester: "",
-      });
+    setFormData({
+  studentId: "",
+  name: "",
+  branch: "",
+  semester: "",
+  section: "",
+});
 
       setShowForm(false);
 
@@ -140,13 +143,13 @@ function StudentManagement() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            name: editingStudent.name,
-            branch: editingStudent.branch,
-            semester: Number(editingStudent.semester),
-          }),
-        },
-      );
+           body: JSON.stringify({
+    name: editingStudent.name,
+    branch: editingStudent.branch,
+    semester: Number(editingStudent.semester),
+    section: editingStudent.section,
+  }),
+});
 
       if (!response.ok) {
         throw new Error("Failed to update student");
@@ -348,6 +351,28 @@ function StudentManagement() {
             </form>
           </div>
         )}
+        {/* Section */}
+<div>
+  <label className="block text-sm text-slate-300 mb-2">
+    Section
+  </label>
+
+  <select
+    name="section"
+    value={formData.section}
+    onChange={handleChange}
+    required
+    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500"
+  >
+    <option value="">Select Section</option>
+    <option value="A">Section A</option>
+    <option value="B">Section B</option>
+    <option value="C">Section C</option>
+    <option value="D">Section D</option>
+     <option value="C">Section E</option>
+    <option value="D">Section F</option>
+  </select>
+</div>
 
         {/* Search and Filters */}
         <div className="flex flex-col md:flex-row gap-4 mb-5">
@@ -451,6 +476,9 @@ function StudentManagement() {
                   <th className="text-left px-6 py-4 text-sm text-slate-400">
                     Semester
                   </th>
+                  <th className="text-left px-6 py-4 text-sm text-slate-400">
+  Section
+</th>
 
                   <th className="text-left px-6 py-4 text-sm text-slate-400">
                     Actions
@@ -462,7 +490,7 @@ function StudentManagement() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan="5"
+                      colSpan="6"
                       className="px-6 py-8 text-center text-slate-400"
                     >
                       Loading students...
@@ -471,7 +499,7 @@ function StudentManagement() {
                 ) : filteredStudents.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="5"
+                      colSpan="6"
                       className="px-6 py-8 text-center text-slate-400"
                     >
                       No students match your search or filters.
@@ -494,6 +522,9 @@ function StudentManagement() {
                       <td className="px-6 py-4 text-slate-400">
                         {student.semester}
                       </td>
+                      <td className="px-6 py-4 text-slate-400">
+  {student.section || "-"}
+</td>
 
                       {/* Actions */}
                       <td className="px-6 py-4">
@@ -603,6 +634,13 @@ function StudentManagement() {
                     {selectedStudent.semester}
                   </span>
                 </div>
+                <div className="flex justify-between border-b border-slate-800 pb-3">
+  <span className="text-slate-400">Section</span>
+
+  <span className="font-medium">
+    {selectedStudent.section || "-"}
+  </span>
+</div>
 
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400">Face Profile</span>

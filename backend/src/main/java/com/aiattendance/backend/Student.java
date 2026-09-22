@@ -14,6 +14,7 @@ public class Student {
     private String name;
     private String branch;
     private Integer semester;
+    private String section;
 
     public Student() {
     }
@@ -48,5 +49,13 @@ public class Student {
 
     public void setSemester(Integer semester) {
         this.semester = semester;
+    }
+
+    public String getSection() {
+        return section;
+    }
+
+    public void setSection(String section) {
+        this.section = section;
     }
 }

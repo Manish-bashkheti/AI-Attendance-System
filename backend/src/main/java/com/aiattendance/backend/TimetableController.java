@@ -25,7 +25,6 @@ public class TimetableController {
         this.timetableService = timetableService;
     }
 
-    // Create timetable
     @PostMapping
     public Timetable createTimetable(
             @RequestBody Timetable timetable) {
@@ -33,14 +32,12 @@ public class TimetableController {
         return timetableService.saveTimetable(timetable);
     }
 
-    // Get all timetables
     @GetMapping
     public List<Timetable> getAllTimetables() {
 
         return timetableService.getAllTimetables();
     }
 
-    // Get current timetable
     @GetMapping("/current")
     public List<TimetableResponse> getCurrentTimetable(
             @RequestParam String dayOfWeek,
@@ -52,7 +49,17 @@ public class TimetableController {
         );
     }
 
-    // Update timetable
+    @GetMapping("/teacher/{teacherId}")
+    public List<TimetableResponse> getTeacherDayTimetable(
+            @PathVariable Integer teacherId,
+            @RequestParam String dayOfWeek) {
+
+        return timetableService.getTeacherDayTimetable(
+                teacherId,
+                dayOfWeek
+        );
+    }
+
     @PutMapping("/{timetableId}")
     public Timetable updateTimetable(
             @PathVariable Integer timetableId,
@@ -71,7 +78,6 @@ public class TimetableController {
         return timetableService.saveTimetable(existingTimetable);
     }
 
-    // Delete timetable
     @DeleteMapping("/{timetableId}")
     public void deleteTimetable(
             @PathVariable Integer timetableId) {

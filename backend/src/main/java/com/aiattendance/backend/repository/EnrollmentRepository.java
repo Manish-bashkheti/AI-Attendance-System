@@ -2,13 +2,19 @@ package com.aiattendance.backend.repository;
 
 import java.util.List;
 
-import com.aiattendance.backend.Enrollment;
-import com.aiattendance.backend.EnrollmentId;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface EnrollmentRepository extends JpaRepository<Enrollment, EnrollmentId> {
+import com.aiattendance.backend.Enrollment;
 
-    boolean existsByStudentIdAndClassId(Integer studentId, Integer classId);
+public interface EnrollmentRepository
+        extends JpaRepository<Enrollment, Integer> {
 
     List<Enrollment> findByClassId(Integer classId);
+
+    List<Enrollment> findByStudentId(Integer studentId);
+
+    boolean existsByStudentIdAndClassId(
+            Integer studentId,
+            Integer classId
+    );
 }

@@ -33,13 +33,20 @@ public class AuthController {
         this.jwtService = jwtService;
     }
 
+    // =========================================================
+    // LOGIN
+    // =========================================================
+
     @PostMapping("/login")
     public ResponseEntity<?> login(
             @RequestBody LoginRequest loginRequest) {
 
         User user = null;
 
-        // Admin login using email
+        /*
+         * ADMIN LOGIN
+         * Admin logs in using email
+         */
         if (loginRequest.getEmail() != null
                 && !loginRequest.getEmail().isBlank()) {
 
@@ -48,7 +55,21 @@ public class AuthController {
                     .orElse(null);
         }
 
-        // Teacher login using Teacher ID
+        /*
+         * STUDENT LOGIN
+         * Student logs in using Student ID
+         */
+        else if (loginRequest.getStudentId() != null) {
+
+            user = userRepository
+                    .findByStudentId(loginRequest.getStudentId())
+                    .orElse(null);
+        }
+
+        /*
+         * TEACHER LOGIN
+         * Teacher logs in using Teacher ID
+         */
         else if (loginRequest.getTeacherId() != null) {
 
             user = userRepository
@@ -56,12 +77,19 @@ public class AuthController {
                     .orElse(null);
         }
 
+        /*
+         * USER NOT FOUND
+         */
         if (user == null) {
+
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body("Invalid ID or password.");
         }
 
+        /*
+         * PASSWORD CHECK
+         */
         if (!passwordEncoder.matches(
                 loginRequest.getPassword(),
                 user.getPasswordHash())) {
@@ -71,8 +99,14 @@ public class AuthController {
                     .body("Invalid ID or password.");
         }
 
+        /*
+         * JWT TOKEN
+         */
         String token = jwtService.generateToken(user);
 
+        /*
+         * LOGIN RESPONSE
+         */
         LoginResponse response = new LoginResponse(
                 token,
                 user.getRole(),
@@ -84,6 +118,11 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+
+    // =========================================================
+    // VERIFY ADMIN PASSWORD
+    // =========================================================
+
     @PostMapping("/verify-password")
     public ResponseEntity<?> verifyPassword(
             @RequestBody Map<String, String> request,
@@ -91,23 +130,40 @@ public class AuthController {
 
         String password = request.get("password");
 
+        /*
+         * Password required
+         */
         if (password == null || password.isBlank()) {
-            return ResponseEntity.badRequest()
+
+            return ResponseEntity
+                    .badRequest()
                     .body("Password is required.");
         }
 
+        /*
+         * Get logged-in user
+         */
         User user = (User) authentication.getPrincipal();
 
+        /*
+         * Only ADMIN can verify password
+         */
         if (!"ADMIN".equals(user.getRole())) {
-            return ResponseEntity.status(403)
+
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
                     .body("Only admin can perform this action.");
         }
 
+        /*
+         * Verify admin password
+         */
         if (!passwordEncoder.matches(
                 password,
                 user.getPasswordHash())) {
 
-            return ResponseEntity.status(401)
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
                     .body("Invalid admin password.");
         }
 

@@ -4,132 +4,155 @@ function Home() {
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white">
+        <div className="min-h-screen bg-gray-100">
 
-            {/* Navbar */}
-            <nav className="border-b border-slate-800 bg-slate-950/90">
-                <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+            {/* ================= HEADER ================= */}
 
-                    <h1 className="text-2xl font-bold">
+            <header className="bg-blue-600 text-white py-6 px-6 shadow-md">
+                <div className="max-w-6xl mx-auto text-center">
+
+                    <h1 className="text-4xl font-bold">
                         AI Attendance System
                     </h1>
 
-                    <span className="text-sm text-slate-400">
-                        Smart Attendance Management
-                    </span>
+                    <p className="mt-2 text-blue-100">
+                        Smart Face Recognition Based Attendance System
+                    </p>
 
                 </div>
-            </nav>
-
-            {/* Hero */}
-            <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-6">
-
-                <div className="w-full max-w-6xl">
-
-                    <div className="mb-12 text-center">
-
-                        <h2 className="text-4xl font-bold md:text-5xl">
-                            Welcome to AI Attendance System
-                        </h2>
-
-                        <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-400">
-                            Manage attendance easily with our smart and
-                            secure attendance management system.
-                        </p>
-
-                    </div>
-
-                    {/* Role Cards */}
-                    <div className="grid gap-6 md:grid-cols-3">
-
-                        {/* Teacher */}
-                        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl transition duration-300 hover:-translate-y-2 hover:border-blue-500">
-
-                            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10 text-4xl">
-                                👨‍🏫
-                            </div>
-
-                            <h3 className="text-2xl font-bold">
-                                Teacher
-                            </h3>
-
-                            <p className="mt-3 min-h-[72px] text-slate-400">
-                                Access your teacher dashboard, manage
-                                attendance and view your timetable.
-                            </p>
-
-                            <button
-                                onClick={() => navigate("/teacher-login")}
-                                className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold transition hover:bg-blue-500"
-                            >
-                                Teacher Login
-                            </button>
-
-                        </div>
+            </header>
 
 
-                        {/* Student */}
-                        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl transition duration-300 hover:-translate-y-2 hover:border-green-500">
+            {/* ================= MAIN ================= */}
 
-                            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-green-500/10 text-4xl">
-                                🎓
-                            </div>
+            <main className="max-w-6xl mx-auto px-6 py-12">
 
-                            <h3 className="text-2xl font-bold">
-                                Student
-                            </h3>
+                <div className="text-center mb-10">
 
-                            <p className="mt-3 min-h-[72px] text-slate-400">
-                                Access your attendance information and
-                                student dashboard.
-                            </p>
+                    <h2 className="text-3xl font-bold text-gray-800">
+                        Welcome
+                    </h2>
 
-                            <button
-                                onClick={() =>
-                                    alert("Student login will be available soon.")
-                                }
-                                className="mt-6 w-full rounded-lg bg-green-600 px-4 py-3 font-semibold transition hover:bg-green-500"
-                            >
-                                Student Login
-                            </button>
-
-                        </div>
-
-
-                        {/* Admin */}
-                        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl transition duration-300 hover:-translate-y-2 hover:border-purple-500">
-
-                            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 text-4xl">
-                                🛡️
-                            </div>
-
-                            <h3 className="text-2xl font-bold">
-                                Admin
-                            </h3>
-
-                            <p className="mt-3 min-h-[72px] text-slate-400">
-                                Manage students, teachers, classes, subjects,
-                                timetable and attendance.
-                            </p>
-
-                            <button
-                                onClick={() => navigate("/login")}
-                                className="mt-6 w-full rounded-lg bg-purple-600 px-4 py-3 font-semibold transition hover:bg-purple-500"
-                            >
-                                Admin Login
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                    <p className="mt-10 text-center text-sm text-slate-500">
-                        AI-powered attendance management system
+                    <p className="text-gray-500 mt-2">
+                        Select your role to continue
                     </p>
 
                 </div>
 
+
+                {/* ================= ROLE CARDS ================= */}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+
+                    {/* ================= ADMIN ================= */}
+
+                    <div
+                        onClick={() => navigate("/login")}
+                        className="bg-white rounded-2xl shadow-lg p-8 cursor-pointer
+                                   hover:shadow-2xl hover:-translate-y-2
+                                   transition-all duration-300"
+                    >
+
+                        <div className="text-6xl text-center mb-5">
+                            👨‍💼
+                        </div>
+
+                        <h3 className="text-2xl font-bold text-center text-gray-800">
+                            Admin
+                        </h3>
+
+                        <p className="text-center text-gray-500 mt-3">
+                            Manage students, teachers, classes, subjects,
+                            timetable and attendance.
+                        </p>
+
+                        <button
+                            className="w-full mt-6 bg-blue-600 text-white
+                                       py-3 rounded-lg font-semibold
+                                       hover:bg-blue-700 transition"
+                        >
+                            Admin Login
+                        </button>
+
+                    </div>
+
+
+                    {/* ================= TEACHER ================= */}
+
+                    <div
+                        onClick={() => navigate("/teacher-login")}
+                        className="bg-white rounded-2xl shadow-lg p-8 cursor-pointer
+                                   hover:shadow-2xl hover:-translate-y-2
+                                   transition-all duration-300"
+                    >
+
+                        <div className="text-6xl text-center mb-5">
+                            👨‍🏫
+                        </div>
+
+                        <h3 className="text-2xl font-bold text-center text-gray-800">
+                            Teacher
+                        </h3>
+
+                        <p className="text-center text-gray-500 mt-3">
+                            Manage attendance, timetable and
+                            teacher profile.
+                        </p>
+
+                        <button
+                            className="w-full mt-6 bg-green-600 text-white
+                                       py-3 rounded-lg font-semibold
+                                       hover:bg-green-700 transition"
+                        >
+                            Teacher Login
+                        </button>
+
+                    </div>
+
+
+                    {/* ================= STUDENT ================= */}
+
+                    <div
+                        onClick={() => navigate("/student-login")}
+                        className="bg-white rounded-2xl shadow-lg p-8 cursor-pointer
+                                   hover:shadow-2xl hover:-translate-y-2
+                                   transition-all duration-300"
+                    >
+
+                        <div className="text-6xl text-center mb-5">
+                            🎓
+                        </div>
+
+                        <h3 className="text-2xl font-bold text-center text-gray-800">
+                            Student
+                        </h3>
+
+                        <p className="text-center text-gray-500 mt-3">
+                            View your profile, attendance,
+                            timetable and academic information.
+                        </p>
+
+                        <button
+                            className="w-full mt-6 bg-purple-600 text-white
+                                       py-3 rounded-lg font-semibold
+                                       hover:bg-purple-700 transition"
+                        >
+                            Student Login
+                        </button>
+
+                    </div>
+
+                </div>
+
             </main>
+
+
+            {/* ================= FOOTER ================= */}
+
+            <footer className="text-center py-6 text-gray-500">
+                © 2026 AI Attendance System
+            </footer>
 
         </div>
     );

@@ -3,6 +3,7 @@ package com.aiattendance.backend;
 public class LoginRequest {
 
     private String email;
+    private Integer studentId;
     private Integer teacherId;
     private String password;
 
@@ -15,6 +16,14 @@ public class LoginRequest {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public Integer getStudentId() {
+        return studentId;
+    }
+
+    public void setStudentId(Integer studentId) {
+        this.studentId = studentId;
     }
 
     public Integer getTeacherId() {

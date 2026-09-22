@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 // ==================== AUTH ====================
 import Login from "./pages/Login";
 import TeacherLogin from "./pages/TeacherLogin";
+import StudentLogin from "./pages/StudentLogin";
 
 // ==================== ADMIN ====================
 import AdminDashboard from "./pages/AdminDashboard";
@@ -21,6 +22,9 @@ import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherProfile from "./pages/TeacherProfile";
 import TeacherTimetable from "./pages/TeacherTimetable";
 import TeacherAttendance from "./pages/TeacherAttendance";
+
+// ==================== STUDENT ====================
+import StudentDashboard from "./pages/StudentDashboard";
 
 // ==================== PROTECTED ROUTE ====================
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -52,6 +56,12 @@ function App() {
         <Route
           path="/teacher-login"
           element={<TeacherLogin />}
+        />
+
+        {/* Student Login */}
+        <Route
+          path="/student-login"
+          element={<StudentLogin />}
         />
 
 
@@ -166,6 +176,19 @@ function App() {
           element={
             <ProtectedRoute allowedRole="TEACHER">
               <TeacherAttendance />
+            </ProtectedRoute>
+          }
+        />
+
+
+        {/* ==================== STUDENT ==================== */}
+
+        {/* Student Dashboard */}
+        <Route
+          path="/student"
+          element={
+            <ProtectedRoute allowedRole="STUDENT">
+              <StudentDashboard />
             </ProtectedRoute>
           }
         />

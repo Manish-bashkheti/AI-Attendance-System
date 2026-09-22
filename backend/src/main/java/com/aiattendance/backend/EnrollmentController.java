@@ -41,9 +41,10 @@ public class EnrollmentController {
         List<Enrollment> enrollments =
                 enrollmentRepository.findByClassId(classId);
 
-        List<Integer> studentIds = enrollments.stream()
-                .map(Enrollment::getStudentId)
-                .toList();
+        List<Integer> studentIds =
+                enrollments.stream()
+                        .map(Enrollment::getStudentId)
+                        .toList();
 
         return studentRepository.findAllById(studentIds);
     }

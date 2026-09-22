@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+const API_BASE_URL = "http://localhost:8080";
+
 function TeacherAttendance() {
   const teacherId = localStorage.getItem("teacherId");
 
@@ -24,7 +26,15 @@ function TeacherAttendance() {
   useEffect(() => {
     loadTeacher();
     loadTodayClasses();
-  }, []);
+
+    const interval = setInterval(() => {
+      if (!session) {
+        loadTodayClasses();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [session]);
 
   const getTodayName = () => {
     return new Date().toLocaleDateString("en-US", {
@@ -35,7 +45,7 @@ function TeacherAttendance() {
   const loadTeacher = async () => {
     try {
       const response = await fetch(
-        `http://localhost:8080/teachers/${teacherId}`
+        `${API_BASE_URL}/teachers/${teacherId}`
       );
 
       if (!response.ok) {
@@ -45,48 +55,14 @@ function TeacherAttendance() {
       const data = await response.json();
       setTeacher(data);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load teacher:", err);
     }
   };
 
-  const loadTodayClasses = async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const today = getTodayName();
-
-      const response = await fetch(
-        `http://localhost:8080/timetables/teacher/${teacherId}?dayOfWeek=${today}`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to load timetable.");
-      }
-
-      const data = await response.json();
-
-      const sorted = [...data].sort((a, b) =>
-        a.startTime.localeCompare(b.startTime)
-      );
-
-      setTodayClasses(sorted);
-
-      const current = findCurrentClass(sorted);
-
-      if (current) {
-        setSelectedClass(current);
-      } else if (sorted.length > 0) {
-        setSelectedClass(sorted[0]);
-      }
-    } catch (err) {
-      console.error(err);
-      setError("Unable to load today's classes.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  /*
+   * Find the class that is running RIGHT NOW.
+   * Upcoming and completed classes are not considered current.
+   */
   const findCurrentClass = (classes) => {
     const now = new Date();
 
@@ -109,45 +85,119 @@ function TeacherAttendance() {
       const end = new Date();
       end.setHours(endHour, endMinute, 0, 0);
 
-      return now >= start && now <= end;
+      return now >= start && now < end;
     });
   };
 
-  const loadStudents = async (classId) => {
-  try {
+  /*
+   * Load today's timetable.
+   *
+   * Important:
+   * We DO NOT select the first class automatically.
+   * Only the currently running class can be selected.
+   */
+  const loadTodayClasses = async () => {
+    setLoading(true);
     setError("");
 
-    const response = await fetch(
-      `http://localhost:8080/enrollments/class/${classId}/students`
-    );
+    try {
+      const today = getTodayName();
 
-    if (!response.ok) {
-      throw new Error("Failed to load enrolled students.");
+      const response = await fetch(
+        `${API_BASE_URL}/timetables/teacher/${teacherId}?dayOfWeek=${today}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load timetable.");
+      }
+
+      const data = await response.json();
+
+      const sorted = [...data].sort((a, b) =>
+        a.startTime.localeCompare(b.startTime)
+      );
+
+      setTodayClasses(sorted);
+
+      const current = findCurrentClass(sorted);
+
+      if (current) {
+        setSelectedClass(current);
+        setError("");
+      } else {
+        setSelectedClass(null);
+        setError(
+          "No timetable found for this teacher at the current time."
+        );
+      }
+    } catch (err) {
+      console.error("Failed to load timetable:", err);
+
+      setTodayClasses([]);
+      setSelectedClass(null);
+
+      setError("Unable to load today's classes.");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    const studentList = await response.json();
+  const loadStudents = async (classId) => {
+    try {
+      setError("");
 
-    setStudents(studentList);
+      const response = await fetch(
+        `${API_BASE_URL}/enrollments/class/${classId}/students`
+      );
 
-    const initialAttendance = {};
+      if (!response.ok) {
+        throw new Error("Failed to load enrolled students.");
+      }
 
-    studentList.forEach((student) => {
-      initialAttendance[student.studentId] = "ABSENT";
-    });
+      const studentList = await response.json();
 
-    setAttendance(initialAttendance);
+      setStudents(studentList);
 
-  } catch (err) {
-    console.error(err);
-    setStudents([]);
-    setAttendance({});
-    setError("Unable to load enrolled students.");
-  }
-};
+      const initialAttendance = {};
+
+      studentList.forEach((student) => {
+        initialAttendance[student.studentId] = "ABSENT";
+      });
+
+      setAttendance(initialAttendance);
+    } catch (err) {
+      console.error("Failed to load enrolled students:", err);
+
+      setStudents([]);
+      setAttendance({});
+
+      setError("Unable to load enrolled students.");
+    }
+  };
 
   const startAttendance = async () => {
-    if (!selectedClass) {
-      setError("Please select a class first.");
+    /*
+     * Double-check the current class from the latest timetable.
+     * This prevents starting attendance for an upcoming/completed class.
+     */
+    const current = findCurrentClass(todayClasses);
+
+    if (!current) {
+      setSelectedClass(null);
+      setError(
+        "There is no active class at the current time."
+      );
+      return;
+    }
+
+    if (
+      !selectedClass ||
+      selectedClass.timetableId !== current.timetableId
+    ) {
+      setSelectedClass(current);
+      setError(
+        "Only the currently running class can start attendance."
+      );
       return;
     }
 
@@ -168,7 +218,7 @@ function TeacherAttendance() {
         String(now.getSeconds()).padStart(2, "0");
 
       const response = await fetch(
-        `http://localhost:8080/attendance-sessions/start?dayOfWeek=${today}&time=${currentTime}&teacherId=${teacherId}`,
+        `${API_BASE_URL}/attendance-sessions/start?dayOfWeek=${today}&time=${currentTime}&teacherId=${teacherId}`,
         {
           method: "POST",
         }
@@ -176,7 +226,10 @@ function TeacherAttendance() {
 
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(text || "Unable to start attendance.");
+
+        throw new Error(
+          text || "Unable to start attendance."
+        );
       }
 
       const data = await response.json();
@@ -185,10 +238,15 @@ function TeacherAttendance() {
 
       await loadStudents(data.classId);
 
-      setMessage("Attendance session started successfully.");
+      setMessage(
+        "Attendance session started successfully."
+      );
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Unable to start attendance.");
+      console.error("Failed to start attendance:", err);
+
+      setError(
+        err.message || "Unable to start attendance."
+      );
     } finally {
       setStarting(false);
     }
@@ -201,70 +259,140 @@ function TeacherAttendance() {
     }));
   };
 
-  const finishAttendance = async () => {
-    if (!session) {
-      setError("No active attendance session.");
-      return;
-    }
+ const finishAttendance = async () => {
+  if (!session) {
+    setError("No active attendance session.");
+    return;
+  }
 
-    setFinishing(true);
-    setError("");
-    setMessage("");
+  setFinishing(true);
+  setError("");
+  setMessage("");
 
-    try {
-      const response = await fetch(
-        `http://localhost:8080/attendance-sessions/${session.sessionId}/finish`,
+  try {
+    /*
+     * First save all students marked PRESENT.
+     * Students marked ABSENT are not sent here.
+     * Backend will mark remaining enrolled students ABSENT
+     * when the session is finished.
+     */
+    const presentStudents = students.filter(
+      (student) =>
+        attendance[student.studentId] === "PRESENT"
+    );
+
+    for (const student of presentStudents) {
+      const attendanceResponse = await fetch(
+        `${API_BASE_URL}/attendance`,
         {
           method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        body: JSON.stringify({
+  studentId: student.studentId,
+  classId: session.classId,
+  subjectId: session.subjectId,
+  status: "PRESENT",
+  attendanceDate: new Date()
+    .toISOString()
+    .split("T")[0],
+  markedTime: new Date().toTimeString().split(" ")[0],
+  sessionId: session.sessionId,
+}),
         }
       );
 
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Unable to finish attendance.");
-      }
-
-      const finishedSession = await response.json();
-
-      setSession(finishedSession);
-
       /*
-       * Reload attendance records for this session.
+       * 409 means the student was already marked PRESENT
+       * by AI recognition. We can safely continue.
        */
+      if (
+        !attendanceResponse.ok &&
+        attendanceResponse.status !== 409
+      ) {
+        const text = await attendanceResponse.text();
 
-      const attendanceResponse = await fetch(
-        "http://localhost:8080/attendance"
-      );
-
-      if (attendanceResponse.ok) {
-        const allRecords = await attendanceResponse.json();
-
-        const sessionRecords = allRecords.filter(
-          (record) =>
-            record.sessionId === finishedSession.sessionId
+        throw new Error(
+          text ||
+            `Failed to save attendance for student ${student.studentId}.`
         );
-
-        const finalAttendance = {};
-
-        sessionRecords.forEach((record) => {
-          finalAttendance[record.studentId] = record.status;
-        });
-
-        setAttendance(finalAttendance);
       }
-
-      setShowPreview(true);
-
-      setMessage(
-        "Attendance session finished. Please verify the attendance."
-      );
-    } catch (err) {
-      console.error(err);
-      setError(err.message || "Unable to finish attendance.");
-    } finally {
-      setFinishing(false);
     }
-  };
+
+    /*
+     * Now finish the session.
+     *
+     * Backend will automatically create ABSENT records
+     * for enrolled students who do not already have an
+     * attendance record for this session.
+     */
+    const finishResponse = await fetch(
+      `${API_BASE_URL}/attendance-sessions/${session.sessionId}/finish`,
+      {
+        method: "POST",
+      }
+    );
+
+    if (!finishResponse.ok) {
+      const text = await finishResponse.text();
+
+      throw new Error(
+        text || "Unable to finish attendance."
+      );
+    }
+
+    const finishedSession =
+      await finishResponse.json();
+
+    setSession(finishedSession);
+
+    /*
+     * Reload attendance records for this session.
+     */
+    const attendanceResponse = await fetch(
+      `${API_BASE_URL}/attendance`
+    );
+
+    if (attendanceResponse.ok) {
+      const allRecords =
+        await attendanceResponse.json();
+
+      const sessionRecords = allRecords.filter(
+        (record) =>
+          record.sessionId ===
+          finishedSession.sessionId
+      );
+
+      const finalAttendance = {};
+
+      sessionRecords.forEach((record) => {
+        finalAttendance[record.studentId] =
+          record.status;
+      });
+
+      setAttendance(finalAttendance);
+    }
+
+    setShowPreview(true);
+
+    setMessage(
+      "Attendance session finished. Please verify the attendance."
+    );
+  } catch (err) {
+    console.error(
+      "Failed to finish attendance:",
+      err
+    );
+
+    setError(
+      err.message ||
+        "Unable to finish attendance."
+    );
+  } finally {
+    setFinishing(false);
+  }
+};
 
   const getPresentCount = () => {
     return Object.values(attendance).filter(
@@ -278,18 +406,27 @@ function TeacherAttendance() {
     ).length;
   };
 
+  /*
+   * Convert backend time like 10:05:00
+   * into 10:05 AM.
+   */
   const formatTime = (time) => {
-    if (!time) return "--";
+    if (!time) {
+      return "--";
+    }
 
-    const [hour, minute] = time.split(":").map(Number);
+    const [hour, minute] = time
+      .split(":")
+      .map(Number);
 
     const date = new Date();
-    date.setHours(hour);
-    date.setMinutes(minute);
 
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
+    date.setHours(hour, minute, 0, 0);
+
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
       minute: "2-digit",
+      hour12: true,
     });
   };
 
@@ -305,7 +442,10 @@ function TeacherAttendance() {
       <aside style={styles.sidebar}>
 
         <div style={styles.logoArea}>
-          <div style={styles.logoIcon}>AI</div>
+
+          <div style={styles.logoIcon}>
+            AI
+          </div>
 
           <div>
             <h2 style={styles.logoTitle}>
@@ -316,6 +456,7 @@ function TeacherAttendance() {
               Teacher Portal
             </p>
           </div>
+
         </div>
 
         <nav style={styles.navigation}>
@@ -378,9 +519,13 @@ function TeacherAttendance() {
         <div style={styles.sidebarBottom}>
 
           <div style={styles.helpBox}>
-            <div style={styles.helpIcon}>?</div>
+
+            <div style={styles.helpIcon}>
+              ?
+            </div>
 
             <div>
+
               <strong style={styles.helpTitle}>
                 Need Help?
               </strong>
@@ -388,13 +533,16 @@ function TeacherAttendance() {
               <p style={styles.helpText}>
                 Contact your administrator
               </p>
+
             </div>
+
           </div>
 
           <button
             style={styles.logoutButton}
             onClick={() => {
               localStorage.clear();
+
               window.location.href =
                 "/teacher-login";
             }}
@@ -440,7 +588,9 @@ function TeacherAttendance() {
 
             <div style={styles.avatar}>
               {teacher?.name
-                ? teacher.name.charAt(0).toUpperCase()
+                ? teacher.name
+                    .charAt(0)
+                    .toUpperCase()
                 : "T"}
             </div>
 
@@ -459,6 +609,15 @@ function TeacherAttendance() {
           </div>
 
         </header>
+
+
+        {/* LOADING */}
+
+        {loading && (
+          <div style={styles.infoMessage}>
+            Loading today's timetable...
+          </div>
+        )}
 
 
         {/* ERROR */}
@@ -492,7 +651,9 @@ function TeacherAttendance() {
             <div>
 
               <p style={styles.smallLabel}>
-                SELECTED CLASS
+                {selectedClass
+                  ? "CURRENT CLASS"
+                  : "NO ACTIVE CLASS"}
               </p>
 
               <h2 style={styles.classTitle}>
@@ -503,17 +664,23 @@ function TeacherAttendance() {
               <p style={styles.classDetails}>
 
                 {selectedClass?.className ||
-                  "Class"}
+                  "There is no active class right now."}
 
-                {" • "}
+                {selectedClass && (
+                  <>
+                    {" • "}
 
-                {selectedClass?.startTime
-                  ? `${formatTime(
+                    {formatTime(
                       selectedClass.startTime
-                    )} - ${formatTime(
+                    )}
+
+                    {" - "}
+
+                    {formatTime(
                       selectedClass.endTime
-                    )}`
-                  : "--"}
+                    )}
+                  </>
+                )}
 
               </p>
 
@@ -527,9 +694,16 @@ function TeacherAttendance() {
             {!session ? (
 
               <button
-                style={styles.startButton}
+                style={{
+                  ...styles.startButton,
+                  ...(starting || !selectedClass
+                    ? styles.disabledStartButton
+                    : {}),
+                }}
                 onClick={startAttendance}
-                disabled={starting || !selectedClass}
+                disabled={
+                  starting || !selectedClass
+                }
               >
                 {starting
                   ? "Starting..."
@@ -540,7 +714,8 @@ function TeacherAttendance() {
 
               <div style={styles.sessionActive}>
 
-                <span style={styles.liveDot}></span>
+                <span style={styles.liveDot}>
+                </span>
 
                 Attendance Session Active
 
@@ -555,74 +730,137 @@ function TeacherAttendance() {
 
         {/* ================= CLASS SELECTOR ================= */}
 
-        {!session && todayClasses.length > 0 && (
+        {!session &&
+          todayClasses.length > 0 && (
 
-          <section style={styles.selectorCard}>
+            <section style={styles.selectorCard}>
 
-            <div style={styles.sectionHeader}>
+              <div style={styles.sectionHeader}>
 
-              <div>
-                <h2 style={styles.sectionTitle}>
-                  Today's Classes
-                </h2>
+                <div>
 
-                <p style={styles.sectionSubtitle}>
-                  Select the class for which you
-                  want to take attendance.
-                </p>
+                  <h2 style={styles.sectionTitle}>
+                    Today's Classes
+                  </h2>
+
+                  <p style={styles.sectionSubtitle}>
+                    Only the currently running class
+                    can be selected for attendance.
+                  </p>
+
+                </div>
+
               </div>
 
-            </div>
 
+              <div style={styles.classGrid}>
 
-            <div style={styles.classGrid}>
+                {todayClasses.map((item) => {
 
-              {todayClasses.map((item) => {
+                  const current =
+                    findCurrentClass(
+                      todayClasses
+                    );
 
-                const selected =
-                  selectedClass?.timetableId ===
-                  item.timetableId;
+                  const isCurrent =
+                    current?.timetableId ===
+                    item.timetableId;
 
-                return (
-                  <button
-                    key={item.timetableId}
-                    onClick={() =>
-                      setSelectedClass(item)
-                    }
-                    style={{
-                      ...styles.classOption,
-                      ...(selected
-                        ? styles.selectedClassOption
-                        : {}),
-                    }}
-                  >
+                  const selected =
+                    selectedClass?.timetableId ===
+                    item.timetableId;
 
-                    <div style={styles.optionTime}>
-                      {formatTime(item.startTime)}
-                    </div>
+                  return (
+                    <button
+                      key={item.timetableId}
+                      disabled={!isCurrent}
+                      onClick={() => {
+                        if (isCurrent) {
+                          setSelectedClass(item);
+                        }
+                      }}
+                      style={{
+                        ...styles.classOption,
 
-                    <div style={styles.optionSubject}>
-                      {item.subjectName}
-                    </div>
+                        ...(selected
+                          ? styles.selectedClassOption
+                          : {}),
 
-                    <div style={styles.optionClass}>
-                      {item.className}
-                    </div>
+                        ...(!isCurrent
+                          ? styles.disabledClassOption
+                          : {}),
+                      }}
+                    >
 
-                    {selected && (
-                      <div style={styles.selectedMark}>
-                        ✓
+                      <div style={styles.optionTime}>
+                        {formatTime(
+                          item.startTime
+                        )}
+
+                        {" - "}
+
+                        {formatTime(
+                          item.endTime
+                        )}
                       </div>
-                    )}
 
-                  </button>
-                );
-              })}
+                      <div style={styles.optionSubject}>
+                        {item.subjectName}
+                      </div>
 
-            </div>
+                      <div style={styles.optionClass}>
+                        {item.className}
+                      </div>
 
-          </section>
-        )}
+                      <div style={styles.optionStatus}>
+
+                        {isCurrent
+                          ? "CURRENT"
+                          : new Date() <
+                            (() => {
+                              const [
+                                h,
+                                m,
+                              ] =
+                                item.startTime
+                                  .split(":")
+                                  .map(Number);
+
+                              const date =
+                                new Date();
+
+                              date.setHours(
+                                h,
+                                m,
+                                0,
+                                0
+                              );
+
+                              return date;
+                            })()
+                          ? "UPCOMING"
+                          : "COMPLETED"}
+
+                      </div>
+
+                      {selected && (
+                        <div
+                          style={
+                            styles.selectedMark
+                          }
+                        >
+                          ✓
+                        </div>
+                      )}
+
+                    </button>
+                  );
+                })}
+
+              </div>
+
+            </section>
+          )}
 
 
         {/* ================= ATTENDANCE ================= */}
@@ -646,10 +884,13 @@ function TeacherAttendance() {
 
               </div>
 
-
               <div style={styles.liveIndicator}>
-                <span style={styles.liveDot}></span>
+
+                <span style={styles.liveDot}>
+                </span>
+
                 LIVE SESSION
+
               </div>
 
             </div>
@@ -660,6 +901,7 @@ function TeacherAttendance() {
             <div style={styles.statsGrid}>
 
               <div style={styles.statCard}>
+
                 <span style={styles.statLabel}>
                   TOTAL STUDENTS
                 </span>
@@ -667,9 +909,12 @@ function TeacherAttendance() {
                 <strong style={styles.statValue}>
                   {students.length}
                 </strong>
+
               </div>
 
+
               <div style={styles.statCard}>
+
                 <span style={styles.statLabel}>
                   PRESENT
                 </span>
@@ -682,9 +927,12 @@ function TeacherAttendance() {
                 >
                   {getPresentCount()}
                 </strong>
+
               </div>
 
+
               <div style={styles.statCard}>
+
                 <span style={styles.statLabel}>
                   ABSENT
                 </span>
@@ -697,6 +945,7 @@ function TeacherAttendance() {
                 >
                   {getAbsentCount()}
                 </strong>
+
               </div>
 
             </div>
@@ -757,9 +1006,17 @@ function TeacherAttendance() {
 
                           <td style={styles.td}>
 
-                            <div style={styles.studentInfo}>
+                            <div
+                              style={
+                                styles.studentInfo
+                              }
+                            >
 
-                              <div style={styles.studentAvatar}>
+                              <div
+                                style={
+                                  styles.studentAvatar
+                                }
+                              >
                                 {student.name
                                   ?.charAt(0)
                                   .toUpperCase()}
@@ -788,7 +1045,9 @@ function TeacherAttendance() {
                             <span
                               style={{
                                 ...styles.attendanceBadge,
-                                ...(status === "PRESENT"
+
+                                ...(status ===
+                                "PRESENT"
                                   ? styles.presentBadge
                                   : styles.absentBadge),
                               }}
@@ -801,7 +1060,11 @@ function TeacherAttendance() {
 
                           <td style={styles.td}>
 
-                            <div style={styles.actionButtons}>
+                            <div
+                              style={
+                                styles.actionButtons
+                              }
+                            >
 
                               <button
                                 onClick={() =>
@@ -812,6 +1075,7 @@ function TeacherAttendance() {
                                 }
                                 style={{
                                   ...styles.presentButton,
+
                                   ...(status ===
                                   "PRESENT"
                                     ? styles.presentActive
@@ -830,6 +1094,7 @@ function TeacherAttendance() {
                                 }
                                 style={{
                                   ...styles.absentButton,
+
                                   ...(status ===
                                   "ABSENT"
                                     ? styles.absentActive
@@ -852,7 +1117,6 @@ function TeacherAttendance() {
                 </table>
 
               </div>
-
             )}
 
 
@@ -941,7 +1205,9 @@ function TeacherAttendance() {
                   Present
                 </span>
 
-                <strong style={{ color: "#16a34a" }}>
+                <strong
+                  style={{ color: "#16a34a" }}
+                >
                   {getPresentCount()}
                 </strong>
 
@@ -954,7 +1220,9 @@ function TeacherAttendance() {
                   Absent
                 </span>
 
-                <strong style={{ color: "#dc2626" }}>
+                <strong
+                  style={{ color: "#dc2626" }}
+                >
                   {getAbsentCount()}
                 </strong>
 
@@ -1019,7 +1287,9 @@ function TeacherAttendance() {
                           <span
                             style={{
                               ...styles.attendanceBadge,
-                              ...(status === "PRESENT"
+
+                              ...(status ===
+                              "PRESENT"
                                 ? styles.presentBadge
                                 : styles.absentBadge),
                             }}
@@ -1046,6 +1316,7 @@ function TeacherAttendance() {
             <div style={styles.saveArea}>
 
               <div>
+
                 <strong>
                   Verify before saving
                 </strong>
@@ -1055,6 +1326,7 @@ function TeacherAttendance() {
                   will commit the attendance records
                   to the database.
                 </p>
+
               </div>
 
               <button
@@ -1277,6 +1549,16 @@ const styles = {
     color: "#64748b",
   },
 
+  infoMessage: {
+    padding: "13px 16px",
+    background: "#eff6ff",
+    color: "#2563eb",
+    border: "1px solid #bfdbfe",
+    borderRadius: "9px",
+    marginBottom: "18px",
+    fontSize: "13px",
+  },
+
   errorMessage: {
     padding: "13px 16px",
     background: "#fef2f2",
@@ -1312,6 +1594,11 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "15px",
+  },
+
+  classRight: {
+    display: "flex",
+    alignItems: "center",
   },
 
   classIcon: {
@@ -1352,6 +1639,12 @@ const styles = {
     borderRadius: "9px",
     fontWeight: "700",
     cursor: "pointer",
+  },
+
+  disabledStartButton: {
+    background: "#94a3b8",
+    cursor: "not-allowed",
+    opacity: 0.7,
   },
 
   sessionActive: {
@@ -1412,11 +1705,18 @@ const styles = {
     border: "1px solid #e2e8f0",
     borderRadius: "11px",
     cursor: "pointer",
+    minHeight: "125px",
   },
 
   selectedClassOption: {
     border: "2px solid #2563eb",
     background: "#eff6ff",
+  },
+
+  disabledClassOption: {
+    opacity: 0.55,
+    cursor: "not-allowed",
+    background: "#f8fafc",
   },
 
   optionTime: {
@@ -1435,6 +1735,14 @@ const styles = {
     marginTop: "5px",
     color: "#64748b",
     fontSize: "11px",
+  },
+
+  optionStatus: {
+    marginTop: "10px",
+    fontSize: "9px",
+    fontWeight: "800",
+    color: "#94a3b8",
+    letterSpacing: "0.5px",
   },
 
   selectedMark: {

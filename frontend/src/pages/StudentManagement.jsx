@@ -1,836 +1,832 @@
 import { useEffect, useState } from "react";
-import { getStudents } from "../services/api";
-import { useNavigate } from "react-router-dom";
-
-const API_BASE_URL = "http://localhost:8080";
+import axios from "axios";
 
 function StudentManagement() {
 
-  const navigate = useNavigate();
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
+    const [students, setStudents] = useState([]);
 
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const [selectedStudent, setSelectedStudent] = useState(null);
-
-  const [editingStudent, setEditingStudent] = useState(null);
-  const [updating, setUpdating] = useState(false);
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [branchFilter, setBranchFilter] = useState("All");
-  const [semesterFilter, setSemesterFilter] = useState("All");
-
-  const [showFilters, setShowFilters] = useState(false);
-  const [openActionMenu, setOpenActionMenu] = useState(null);
-
-  const [deletingStudent, setDeletingStudent] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-
-const [formData, setFormData] = useState({
-  studentId: "",
-  name: "",
-  branch: "",
-  semester: "",
-  section: "",
-});
-
-  useEffect(() => {
-    loadStudents();
-  }, []);
-
-  async function loadStudents() {
-    try {
-      const data = await getStudents();
-      setStudents(data);
-    } catch (error) {
-      console.error("Failed to load students:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const branches = [
-    ...new Set(students.map((student) => student.branch).filter(Boolean)),
-  ];
-
-  const semesters = [
-    ...new Set(students.map((student) => student.semester).filter(Boolean)),
-  ].sort((a, b) => a - b);
-
-  const filteredStudents = students.filter((student) => {
-    const search = searchTerm.toLowerCase();
-
-    const matchesSearch =
-      student.name.toLowerCase().includes(search) ||
-      student.studentId.toString().includes(search);
-
-    const matchesBranch =
-      branchFilter === "All" || student.branch === branchFilter;
-
-    const matchesSemester =
-      semesterFilter === "All" ||
-      student.semester.toString() === semesterFilter;
-
-    return matchesSearch && matchesBranch && matchesSemester;
-  });
-
-  function handleChange(event) {
-    const { name, value } = event.target;
-
-    setFormData({
-      ...formData,
-      [name]: value,
+    const [formData, setFormData] = useState({
+        studentId: "",
+        name: "",
+        email: "",
+        dob: "",
+        course: "",
+        branch: "",
+        customBranch: "",
+        semester: "",
+        section: ""
     });
-  }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+    const [editingId, setEditingId] = useState(null);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
 
-    setSaving(true);
+    const courses = {
+        "B.Tech": [
+            "CSE",
+            "ECE",
+            "ME",
+            "Civil",
+            "AI & ML",
+            "Data Science"
+        ],
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/students`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-  studentId: Number(formData.studentId),
-  name: formData.name,
-  branch: formData.branch,
-  semester: Number(formData.semester),
-  section: formData.section,
-}),
-      });
+        "BCA": [
+            "Computer Applications"
+        ],
 
-      if (!response.ok) {
-        throw new Error("Failed to add student");
-      }
+        "MCA": [
+            "Computer Applications"
+        ],
 
-      await response.json();
+        "BBA": [
+            "General",
+            "Finance",
+            "Marketing",
+            "Human Resources"
+        ],
 
-    setFormData({
-  studentId: "",
-  name: "",
-  branch: "",
-  semester: "",
-  section: "",
-});
+        "MBA": [
+            "Finance",
+            "Marketing",
+            "Human Resources",
+            "International Business"
+        ]
+    };
 
-      setShowForm(false);
+    const fetchStudents = async () => {
+        try {
+            const response = await axios.get(
+                "http://localhost:8080/students"
+            );
 
-      await loadStudents();
-    } catch (error) {
-      console.error("Failed to add student:", error);
-      alert("Failed to add student.");
-    } finally {
-      setSaving(false);
-    }
-  }
+            setStudents(response.data);
 
-  async function handleUpdate(event) {
-    event.preventDefault();
+        } catch (error) {
+            console.error(
+                "Failed to fetch students:",
+                error
+            );
+        }
+    };
 
-    setUpdating(true);
+    useEffect(() => {
+        fetchStudents();
+    }, []);
 
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/students/${editingStudent.studentId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-           body: JSON.stringify({
-    name: editingStudent.name,
-    branch: editingStudent.branch,
-    semester: Number(editingStudent.semester),
-    section: editingStudent.section,
-  }),
-});
+    // =========================
+    // HANDLE INPUT CHANGE
+    // =========================
 
-      if (!response.ok) {
-        throw new Error("Failed to update student");
-      }
+    const handleChange = (e) => {
 
-      await response.json();
+        const { name, value } = e.target;
 
-      setEditingStudent(null);
+        if (name === "course") {
 
-      await loadStudents();
-    } catch (error) {
-      console.error("Failed to update student:", error);
-      alert("Failed to update student.");
-    } finally {
-      setUpdating(false);
-    }
-  }
-  async function handleDelete() {
-    if (!deletingStudent) {
-      return;
-    }
+            setFormData((prev) => ({
+                ...prev,
+                course: value,
+                branch: "",
+                customBranch: ""
+            }));
 
-    setDeleting(true);
+            return;
+        }
 
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/students/${deletingStudent.studentId}`,
-        {
-          method: "DELETE",
-        },
-      );
+        if (name === "branch") {
 
-      if (!response.ok) {
-        throw new Error("Failed to delete student");
-      }
+            if (value === "CUSTOM") {
 
-      setDeletingStudent(null);
+                setFormData((prev) => ({
+                    ...prev,
+                    branch: "CUSTOM",
+                    customBranch: ""
+                }));
 
-      await loadStudents();
-    } catch (error) {
-      console.error("Failed to delete student:", error);
-      alert("Failed to delete student.");
-    } finally {
-      setDeleting(false);
-    }
-  }
+            } else {
 
-  function clearFilters() {
-    setBranchFilter("All");
-    setSemesterFilter("All");
-    setSearchTerm("");
-  }
+                setFormData((prev) => ({
+                    ...prev,
+                    branch: value,
+                    customBranch: ""
+                }));
+            }
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/80">
-        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">AI Attendance</h1>
+            return;
+        }
 
-            <p className="text-sm text-slate-400">Student Management</p>
-          </div>
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value
+        }));
+    };
 
-          <button onClick={() => navigate("/admin")}>Back</button>
-        </div>
-      </header>
+    // =========================
+    // DOB CHANGE
+    // =========================
 
-      {/* Main */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Page Heading */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-3xl font-bold">Students</h2>
+    const handleDobChange = (e) => {
 
-            <p className="text-slate-400 mt-2">
-              Manage registered students and their face profiles.
-            </p>
-          </div>
+        let value = e.target.value.replace(/\D/g, "");
 
-          <button
-            onClick={() => setShowForm(true)}
-            className="px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 font-semibold hover:scale-[1.02] transition"
-          >
-            + Add Student
-          </button>
-        </div>
+        if (value.length > 8) {
+            value = value.slice(0, 8);
+        }
 
-        {/* Add Student Form */}
-        {showForm && (
-          <div className="mb-8 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-xl font-semibold">Add New Student</h3>
+        setFormData((prev) => ({
+            ...prev,
+            dob: value
+        }));
+    };
 
-                <p className="text-sm text-slate-400 mt-1">
-                  Enter student academic details.
-                </p>
-              </div>
+    // =========================
+    // RESET FORM
+    // =========================
 
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
+    const resetForm = () => {
 
-            <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Student ID */}
-                <div>
-                  <label className="block text-sm text-slate-300 mb-2">
-                    Student ID
-                  </label>
+        setFormData({
+            studentId: "",
+            name: "",
+            email: "",
+            dob: "",
+            course: "",
+            branch: "",
+            customBranch: "",
+            semester: "",
+            section: ""
+        });
 
-                  <input
-                    type="number"
-                    name="studentId"
-                    value={formData.studentId}
-                    onChange={handleChange}
-                    placeholder="Enter student ID"
-                    required
-                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500"
-                  />
+        setEditingId(null);
+        setError("");
+    };
+
+    // =========================
+    // SUBMIT
+    // =========================
+
+    const handleSubmit = async (e) => {
+
+        e.preventDefault();
+
+        setError("");
+        setSuccess("");
+
+        const finalBranch =
+            formData.branch === "CUSTOM"
+                ? formData.customBranch.trim()
+                : formData.branch.trim();
+
+        // =========================
+        // VALIDATION
+        // =========================
+
+        if (
+            !formData.studentId ||
+            !formData.name.trim() ||
+            !formData.email.trim() ||
+            !formData.dob ||
+            !formData.course ||
+            !finalBranch ||
+            !formData.semester ||
+            !formData.section.trim()
+        ) {
+
+            setError(
+                "Please fill all required fields."
+            );
+
+            return;
+        }
+
+        if (!/^\d{8}$/.test(formData.dob)) {
+
+            setError(
+                "DOB must be in DDMMYYYY format."
+            );
+
+            return;
+        }
+
+        // =========================
+        // DATA SENT TO BACKEND
+        // =========================
+
+        const data = {
+            studentId: Number(formData.studentId),
+
+            name: formData.name.trim(),
+
+            email: formData.email.trim(),
+
+            dob: formData.dob,
+
+            course: formData.course,
+
+            branch: finalBranch,
+
+            semester: Number(formData.semester),
+
+            section: formData.section.trim()
+        };
+
+        // DEBUG
+        console.log(
+            "DATA BEING SENT TO BACKEND:",
+            data
+        );
+
+        try {
+
+            if (editingId) {
+
+                await axios.put(
+                    `http://localhost:8080/students/${editingId}`,
+                    data
+                );
+
+                setSuccess(
+                    "Student updated successfully."
+                );
+
+            } else {
+
+                await axios.post(
+                    "http://localhost:8080/students",
+                    data
+                );
+
+                setSuccess(
+                    "Student added successfully."
+                );
+            }
+
+            resetForm();
+
+            fetchStudents();
+
+        } catch (error) {
+
+            console.error(
+                "Student save error:",
+                error
+            );
+
+            console.error(
+                "Backend response:",
+                error.response?.data
+            );
+
+            setError(
+                typeof error.response?.data === "string"
+                    ? error.response.data
+                    : "Failed to save student."
+            );
+        }
+    };
+
+    // =========================
+    // EDIT
+    // =========================
+
+    const handleEdit = (student) => {
+
+        const isCustomBranch =
+            !courses[student.course]?.includes(
+                student.branch
+            );
+
+        setFormData({
+
+            studentId:
+                student.studentId || "",
+
+            name:
+                student.name || "",
+
+            email:
+                student.email || "",
+
+            dob:
+                student.dob || "",
+
+            course:
+                student.course || "",
+
+            branch:
+                isCustomBranch
+                    ? "CUSTOM"
+                    : student.branch || "",
+
+            customBranch:
+                isCustomBranch
+                    ? student.branch || ""
+                    : "",
+
+            semester:
+                student.semester || "",
+
+            section:
+                student.section || ""
+        });
+
+        setEditingId(
+            student.studentId
+        );
+
+        setError("");
+        setSuccess("");
+    };
+
+    // =========================
+    // DELETE
+    // =========================
+
+    const handleDelete = async (studentId) => {
+
+        const confirmed =
+            window.confirm(
+                "Are you sure you want to delete this student?"
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+
+            await axios.delete(
+                `http://localhost:8080/students/${studentId}`
+            );
+
+            setSuccess(
+                "Student deleted successfully."
+            );
+
+            fetchStudents();
+
+        } catch (error) {
+
+            console.error(
+                "Delete error:",
+                error
+            );
+
+            setError(
+                "Failed to delete student."
+            );
+        }
+    };
+
+    return (
+        <div className="p-6">
+
+            <h1 className="text-3xl font-bold mb-6">
+                Student Management
+            </h1>
+
+            {/* ERROR */}
+
+            {error && (
+                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+                    {error}
                 </div>
-
-                {/* Name */}
-                <div>
-                  <label className="block text-sm text-slate-300 mb-2">
-                    Student Name
-                  </label>
-
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    placeholder="Enter student name"
-                    required
-                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-
-                {/* Branch */}
-                <div>
-                  <label className="block text-sm text-slate-300 mb-2">
-                    Branch
-                  </label>
-
-                  <input
-                    type="text"
-                    name="branch"
-                    value={formData.branch}
-                    onChange={handleChange}
-                    placeholder="Example: CSE"
-                    required
-                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-
-                {/* Semester */}
-                <div>
-                  <label className="block text-sm text-slate-300 mb-2">
-                    Semester
-                  </label>
-
-                  <input
-                    type="number"
-                    name="semester"
-                    value={formData.semester}
-                    onChange={handleChange}
-                    placeholder="Example: 6"
-                    min="1"
-                    max="8"
-                    required
-                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 font-semibold disabled:opacity-50"
-                >
-                  {saving ? "Saving..." : "Save Student"}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-        {/* Section */}
-<div>
-  <label className="block text-sm text-slate-300 mb-2">
-    Section
-  </label>
-
-  <select
-    name="section"
-    value={formData.section}
-    onChange={handleChange}
-    required
-    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500"
-  >
-    <option value="">Select Section</option>
-    <option value="A">Section A</option>
-    <option value="B">Section B</option>
-    <option value="C">Section C</option>
-    <option value="D">Section D</option>
-     <option value="C">Section E</option>
-    <option value="D">Section F</option>
-  </select>
-</div>
-
-        {/* Search and Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-5">
-          {/* Search */}
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Search by name or student ID..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 outline-none focus:border-blue-500"
-            />
-          </div>
-
-          {/* Filter */}
-          <div className="relative">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="px-5 py-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition"
-            >
-              Filters
-            </button>
-
-            {showFilters && (
-              <div className="absolute right-0 mt-2 w-72 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl z-40">
-                <div className="flex items-center justify-between mb-5">
-                  <h4 className="font-semibold">Filters</h4>
-
-                  <button
-                    onClick={clearFilters}
-                    className="text-xs text-blue-400 hover:text-blue-300"
-                  >
-                    Clear
-                  </button>
-                </div>
-
-                {/* Branch */}
-                <div className="mb-4">
-                  <label className="block text-sm text-slate-400 mb-2">
-                    Branch
-                  </label>
-
-                  <select
-                    value={branchFilter}
-                    onChange={(event) => setBranchFilter(event.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white outline-none"
-                  >
-                    <option value="All">All Branches</option>
-
-                    {branches.map((branch) => (
-                      <option key={branch} value={branch}>
-                        {branch}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Semester */}
-                <div>
-                  <label className="block text-sm text-slate-400 mb-2">
-                    Semester
-                  </label>
-
-                  <select
-                    value={semesterFilter}
-                    onChange={(event) => setSemesterFilter(event.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white outline-none"
-                  >
-                    <option value="All">All Semesters</option>
-
-                    {semesters.map((semester) => (
-                      <option key={semester} value={semester.toString()}>
-                        Semester {semester}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
             )}
-          </div>
-        </div>
 
-        {/* Student Table */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-800/60">
-                <tr>
-                  <th className="text-left px-6 py-4 text-sm text-slate-400">
-                    Student ID
-                  </th>
+            {/* SUCCESS */}
 
-                  <th className="text-left px-6 py-4 text-sm text-slate-400">
-                    Name
-                  </th>
+            {success && (
+                <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-lg">
+                    {success}
+                </div>
+            )}
 
-                  <th className="text-left px-6 py-4 text-sm text-slate-400">
-                    Branch
-                  </th>
+            {/* =========================
+                FORM
+            ========================= */}
 
-                  <th className="text-left px-6 py-4 text-sm text-slate-400">
-                    Semester
-                  </th>
-                  <th className="text-left px-6 py-4 text-sm text-slate-400">
-  Section
-</th>
+            <form
+                onSubmit={handleSubmit}
+                className="bg-white p-6 rounded-xl shadow mb-8"
+            >
 
-                  <th className="text-left px-6 py-4 text-sm text-slate-400">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="px-6 py-8 text-center text-slate-400"
-                    >
-                      Loading students...
-                    </td>
-                  </tr>
-                ) : filteredStudents.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="px-6 py-8 text-center text-slate-400"
-                    >
-                      No students match your search or filters.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredStudents.map((student) => (
-                    <tr
-                      key={student.studentId}
-                      className="border-t border-slate-800"
-                    >
-                      <td className="px-6 py-4">{student.studentId}</td>
+                    {/* STUDENT ID */}
 
-                      <td className="px-6 py-4 font-medium">{student.name}</td>
+                    <div>
 
-                      <td className="px-6 py-4 text-slate-400">
-                        {student.branch}
-                      </td>
+                        <label className="block mb-2 font-medium">
+                            Student ID
+                        </label>
 
-                      <td className="px-6 py-4 text-slate-400">
-                        {student.semester}
-                      </td>
-                      <td className="px-6 py-4 text-slate-400">
-  {student.section || "-"}
-</td>
+                        <input
+                            type="number"
+                            name="studentId"
+                            value={formData.studentId}
+                            onChange={handleChange}
+                            disabled={!!editingId}
+                            placeholder="Enter Student ID"
+                            className="w-full px-4 py-3 border rounded-lg"
+                        />
 
-                      {/* Actions */}
-                      <td className="px-6 py-4">
-                        <div className="relative inline-block">
-                          <button
-                            onClick={() =>
-                              setOpenActionMenu(
-                                openActionMenu === student.studentId
-                                  ? null
-                                  : student.studentId,
-                              )
-                            }
-                            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm transition"
-                          >
-                            Actions ▾
-                          </button>
+                    </div>
 
-                          {openActionMenu === student.studentId && (
-                            <div className="absolute right-0 mt-2 w-32 bg-slate-900 border border-slate-800 rounded-xl shadow-xl z-30 overflow-hidden">
-                              <button
-                                onClick={() => {
-                                  setSelectedStudent(student);
-                                  setOpenActionMenu(null);
-                                }}
-                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-800 transition"
-                              >
-                                View
-                              </button>
+                    {/* NAME */}
 
-                              <button
-                                onClick={() => {
-                                  setEditingStudent({ ...student });
-                                  setOpenActionMenu(null);
-                                }}
-                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-800 transition"
-                              >
-                                Edit
-                              </button>
+                    <div>
 
-                              <button
-                                onClick={() => {
-                                  setDeletingStudent(student);
-                                  setOpenActionMenu(null);
-                                }}
-                                className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-slate-800 transition"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          )}
+                        <label className="block mb-2 font-medium">
+                            Name
+                        </label>
+
+                        <input
+                            type="text"
+                            name="name"
+                            value={formData.name}
+                            onChange={handleChange}
+                            placeholder="Enter student name"
+                            className="w-full px-4 py-3 border rounded-lg"
+                        />
+
+                    </div>
+
+                    {/* EMAIL */}
+
+                    <div>
+
+                        <label className="block mb-2 font-medium">
+                            Email
+                        </label>
+
+                        <input
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            placeholder="Enter email"
+                            className="w-full px-4 py-3 border rounded-lg"
+                        />
+
+                    </div>
+
+                    {/* DOB */}
+
+                    <div>
+
+                        <label className="block mb-2 font-medium">
+                            Date of Birth
+                        </label>
+
+                        <input
+                            type="text"
+                            name="dob"
+                            value={formData.dob}
+                            onChange={handleDobChange}
+                            placeholder="DDMMYYYY"
+                            maxLength={8}
+                            className="w-full px-4 py-3 border rounded-lg"
+                        />
+
+                        <p className="text-sm text-gray-500 mt-1">
+                            Example: 01102006
+                        </p>
+
+                    </div>
+
+                    {/* COURSE */}
+
+                    <div>
+
+                        <label className="block mb-2 font-medium">
+                            Course
+                        </label>
+
+                        <select
+                            name="course"
+                            value={formData.course}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 border rounded-lg"
+                        >
+
+                            <option value="">
+                                Select Course
+                            </option>
+
+                            {Object.keys(courses).map(
+                                (course) => (
+
+                                    <option
+                                        key={course}
+                                        value={course}
+                                    >
+                                        {course}
+                                    </option>
+
+                                )
+                            )}
+
+                        </select>
+
+                    </div>
+
+                    {/* BRANCH */}
+
+                    <div>
+
+                        <label className="block mb-2 font-medium">
+                            Branch
+                        </label>
+
+                        <select
+                            name="branch"
+                            value={formData.branch}
+                            onChange={handleChange}
+                            disabled={!formData.course}
+                            className="w-full px-4 py-3 border rounded-lg disabled:bg-gray-100"
+                        >
+
+                            <option value="">
+                                Select Branch
+                            </option>
+
+                            {formData.course &&
+                                courses[
+                                    formData.course
+                                ]?.map(
+                                    (branch) => (
+
+                                        <option
+                                            key={branch}
+                                            value={branch}
+                                        >
+                                            {branch}
+                                        </option>
+
+                                    )
+                                )}
+
+                            <option value="CUSTOM">
+                                + Add Custom Branch
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                    {/* CUSTOM BRANCH */}
+
+                    {formData.branch === "CUSTOM" && (
+
+                        <div>
+
+                            <label className="block mb-2 font-medium">
+                                Custom Branch
+                            </label>
+
+                            <input
+                                type="text"
+                                name="customBranch"
+                                value={formData.customBranch}
+                                onChange={handleChange}
+                                placeholder="Enter custom branch"
+                                className="w-full px-4 py-3 border rounded-lg"
+                            />
+
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+
+                    )}
+
+                    {/* SEMESTER */}
+
+                    <div>
+
+                        <label className="block mb-2 font-medium">
+                            Semester
+                        </label>
+
+                        <select
+                            name="semester"
+                            value={formData.semester}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 border rounded-lg"
+                        >
+
+                            <option value="">
+                                Select Semester
+                            </option>
+
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map(
+                                (semester) => (
+
+                                    <option
+                                        key={semester}
+                                        value={semester}
+                                    >
+                                        Semester {semester}
+                                    </option>
+
+                                )
+                            )}
+
+                        </select>
+
+                    </div>
+
+                    {/* SECTION */}
+
+                    <div>
+
+                        <label className="block mb-2 font-medium">
+                            Section
+                        </label>
+
+                        <input
+                            type="text"
+                            name="section"
+                            value={formData.section}
+                            onChange={handleChange}
+                            placeholder="Example: A"
+                            className="w-full px-4 py-3 border rounded-lg"
+                        />
+
+                    </div>
+
+                </div>
+
+                {/* BUTTONS */}
+
+                <div className="flex gap-3 mt-6">
+
+                    <button
+                        type="submit"
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+                    >
+                        {editingId
+                            ? "Update Student"
+                            : "Add Student"}
+                    </button>
+
+                    {editingId && (
+
+                        <button
+                            type="button"
+                            onClick={resetForm}
+                            className="px-6 py-3 bg-gray-200 rounded-lg font-semibold"
+                        >
+                            Cancel
+                        </button>
+
+                    )}
+
+                </div>
+
+            </form>
+
+            {/* =========================
+                STUDENT TABLE
+            ========================= */}
+
+            <div className="bg-white rounded-xl shadow overflow-x-auto">
+
+                <table className="w-full">
+
+                    <thead className="bg-gray-100">
+
+                        <tr>
+
+                            <th className="p-3 text-left">
+                                Student ID
+                            </th>
+
+                            <th className="p-3 text-left">
+                                Name
+                            </th>
+
+                            <th className="p-3 text-left">
+                                Email
+                            </th>
+
+                            <th className="p-3 text-left">
+                                DOB
+                            </th>
+
+                            <th className="p-3 text-left">
+                                Course
+                            </th>
+
+                            <th className="p-3 text-left">
+                                Branch
+                            </th>
+
+                            <th className="p-3 text-left">
+                                Semester
+                            </th>
+
+                            <th className="p-3 text-left">
+                                Section
+                            </th>
+
+                            <th className="p-3 text-left">
+                                Password
+                            </th>
+
+                            <th className="p-3 text-left">
+                                Actions
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {students.map((student) => (
+
+                            <tr
+                                key={student.studentId}
+                                className="border-t"
+                            >
+
+                                <td className="p-3">
+                                    {student.studentId}
+                                </td>
+
+                                <td className="p-3">
+                                    {student.name}
+                                </td>
+
+                                <td className="p-3">
+                                    {student.email}
+                                </td>
+
+                                <td className="p-3">
+                                    {student.dob}
+                                </td>
+
+                                <td className="p-3">
+                                    {student.course}
+                                </td>
+
+                                <td className="p-3">
+                                    {student.branch}
+                                </td>
+
+                                <td className="p-3">
+                                    {student.semester}
+                                </td>
+
+                                <td className="p-3">
+                                    {student.section}
+                                </td>
+
+                                <td className="p-3">
+                                    ••••••••
+                                </td>
+
+                                <td className="p-3">
+
+                                    <div className="flex gap-2">
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleEdit(student)
+                                            }
+                                            className="px-3 py-2 bg-yellow-500 text-white rounded"
+                                        >
+                                            Edit
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleDelete(
+                                                    student.studentId
+                                                )
+                                            }
+                                            className="px-3 py-2 bg-red-600 text-white rounded"
+                                        >
+                                            Delete
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+                        ))}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
         </div>
-
-        {/* Student Details Modal */}
-        {selectedStudent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-            <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-2xl font-bold">Student Details</h3>
-
-                  <p className="text-sm text-slate-400 mt-1">
-                    Student profile information
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => setSelectedStudent(null)}
-                  className="text-slate-400 hover:text-white text-xl"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between border-b border-slate-800 pb-3">
-                  <span className="text-slate-400">Student ID</span>
-
-                  <span className="font-medium">
-                    {selectedStudent.studentId}
-                  </span>
-                </div>
-
-                <div className="flex justify-between border-b border-slate-800 pb-3">
-                  <span className="text-slate-400">Name</span>
-
-                  <span className="font-medium">{selectedStudent.name}</span>
-                </div>
-
-                <div className="flex justify-between border-b border-slate-800 pb-3">
-                  <span className="text-slate-400">Branch</span>
-
-                  <span className="font-medium">{selectedStudent.branch}</span>
-                </div>
-
-                <div className="flex justify-between border-b border-slate-800 pb-3">
-                  <span className="text-slate-400">Semester</span>
-
-                  <span className="font-medium">
-                    {selectedStudent.semester}
-                  </span>
-                </div>
-                <div className="flex justify-between border-b border-slate-800 pb-3">
-  <span className="text-slate-400">Section</span>
-
-  <span className="font-medium">
-    {selectedStudent.section || "-"}
-  </span>
-</div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Face Profile</span>
-
-                  <span className="px-3 py-1 rounded-full text-sm bg-yellow-500/10 text-yellow-400">
-                    Not Registered
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-8">
-                <button
-                  onClick={() => setSelectedStudent(null)}
-                  className="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Edit Student Modal */}
-        {editingStudent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-            <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-2xl font-bold">Edit Student</h3>
-
-                  <p className="text-sm text-slate-400 mt-1">
-                    Update student information
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => setEditingStudent(null)}
-                  className="text-slate-400 hover:text-white text-xl"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <form onSubmit={handleUpdate}>
-                {/* Student ID */}
-                <div className="mb-5">
-                  <label className="block text-sm text-slate-300 mb-2">
-                    Student ID
-                  </label>
-
-                  <input
-                    type="number"
-                    value={editingStudent.studentId}
-                    disabled
-                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-500"
-                  />
-                </div>
-
-                {/* Name */}
-                <div className="mb-5">
-                  <label className="block text-sm text-slate-300 mb-2">
-                    Student Name
-                  </label>
-
-                  <input
-                    type="text"
-                    value={editingStudent.name}
-                    onChange={(event) =>
-                      setEditingStudent({
-                        ...editingStudent,
-                        name: event.target.value,
-                      })
-                    }
-                    required
-                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-
-                {/* Branch */}
-                <div className="mb-5">
-                  <label className="block text-sm text-slate-300 mb-2">
-                    Branch
-                  </label>
-
-                  <input
-                    type="text"
-                    value={editingStudent.branch}
-                    onChange={(event) =>
-                      setEditingStudent({
-                        ...editingStudent,
-                        branch: event.target.value,
-                      })
-                    }
-                    required
-                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-
-                {/* Semester */}
-                <div className="mb-6">
-                  <label className="block text-sm text-slate-300 mb-2">
-                    Semester
-                  </label>
-
-                  <input
-                    type="number"
-                    min="1"
-                    max="8"
-                    value={editingStudent.semester}
-                    onChange={(event) =>
-                      setEditingStudent({
-                        ...editingStudent,
-                        semester: event.target.value,
-                      })
-                    }
-                    required
-                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setEditingStudent(null)}
-                    className="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={updating}
-                    className="px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 font-semibold disabled:opacity-50"
-                  >
-                    {updating ? "Updating..." : "Save Changes"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-        {/* Delete Confirmation Modal */}
-        {deletingStudent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-            <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-              <div className="mb-6">
-                <h3 className="text-2xl font-bold">Delete Student</h3>
-
-                <p className="text-slate-400 mt-2">
-                  Are you sure you want to delete this student?
-                </p>
-              </div>
-
-              <div className="bg-slate-800/60 rounded-xl p-4 mb-6">
-                <p className="font-semibold">{deletingStudent.name}</p>
-
-                <p className="text-sm text-slate-400 mt-1">
-                  Student ID: {deletingStudent.studentId}
-                </p>
-              </div>
-
-              <p className="text-sm text-red-400 mb-6">
-                This action cannot be undone.
-              </p>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setDeletingStudent(null)}
-                  disabled={deleting}
-                  className="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 font-semibold transition disabled:opacity-50"
-                >
-                  {deleting ? "Deleting..." : "Delete Student"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
-  );
+    );
 }
 
 export default StudentManagement;

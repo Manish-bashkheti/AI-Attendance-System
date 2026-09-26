@@ -12,6 +12,12 @@ public class Student {
     private Integer studentId;
 
     private String name;
+    private String email;
+    private String passwordHash;
+
+    private String dob;
+
+    private String course;
     private String branch;
     private Integer semester;
     private String section;
@@ -33,6 +39,38 @@ public class Student {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public String getDob() {
+        return dob;
+    }
+
+    public void setDob(String dob) {
+        this.dob = dob;
+    }
+
+    public String getCourse() {
+        return course;
+    }
+
+    public void setCourse(String course) {
+        this.course = course;
     }
 
     public String getBranch() {

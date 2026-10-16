@@ -22,7 +22,6 @@ function TeacherAttendance() {
   const [error, setError] = useState("");
 
   const [showPreview, setShowPreview] = useState(false);
-
   useEffect(() => {
     loadTeacher();
     loadTodayClasses();
@@ -36,6 +35,18 @@ function TeacherAttendance() {
     return () => clearInterval(interval);
   }, [session]);
 
+  useEffect(() => {
+    if (!session || showPreview) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      loadAttendance(session.sessionId);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [session, showPreview]);
+
   const getTodayName = () => {
     return new Date().toLocaleDateString("en-US", {
       weekday: "long",
@@ -44,9 +55,7 @@ function TeacherAttendance() {
 
   const loadTeacher = async () => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/teachers/${teacherId}`
-      );
+      const response = await fetch(`${API_BASE_URL}/teachers/${teacherId}`);
 
       if (!response.ok) {
         throw new Error("Failed to load teacher.");
@@ -71,13 +80,9 @@ function TeacherAttendance() {
         return false;
       }
 
-      const [startHour, startMinute] = item.startTime
-        .split(":")
-        .map(Number);
+      const [startHour, startMinute] = item.startTime.split(":").map(Number);
 
-      const [endHour, endMinute] = item.endTime
-        .split(":")
-        .map(Number);
+      const [endHour, endMinute] = item.endTime.split(":").map(Number);
 
       const start = new Date();
       start.setHours(startHour, startMinute, 0, 0);
@@ -104,7 +109,7 @@ function TeacherAttendance() {
       const today = getTodayName();
 
       const response = await fetch(
-        `${API_BASE_URL}/timetables/teacher/${teacherId}?dayOfWeek=${today}`
+        `${API_BASE_URL}/timetables/teacher/${teacherId}?dayOfWeek=${today}`,
       );
 
       if (!response.ok) {
@@ -114,7 +119,7 @@ function TeacherAttendance() {
       const data = await response.json();
 
       const sorted = [...data].sort((a, b) =>
-        a.startTime.localeCompare(b.startTime)
+        a.startTime.localeCompare(b.startTime),
       );
 
       setTodayClasses(sorted);
@@ -126,9 +131,7 @@ function TeacherAttendance() {
         setError("");
       } else {
         setSelectedClass(null);
-        setError(
-          "No timetable found for this teacher at the current time."
-        );
+        setError("No timetable found for this teacher at the current time.");
       }
     } catch (err) {
       console.error("Failed to load timetable:", err);
@@ -143,15 +146,21 @@ function TeacherAttendance() {
   };
 
   const loadStudents = async (classId) => {
-    try {
-      setError("");
+    if (!classId) {
+      setStudents([]);
+      setAttendance({});
+      setError("No class was found for the attendance session.");
+      return;
+    }
 
+    try {
       const response = await fetch(
-        `${API_BASE_URL}/enrollments/class/${classId}/students`
+        `${API_BASE_URL}/enrollments/class/${classId}/students`,
       );
 
       if (!response.ok) {
-        throw new Error("Failed to load enrolled students.");
+        const text = await response.text();
+        throw new Error(text || "Failed to load enrolled students.");
       }
 
       const studentList = await response.json();
@@ -170,11 +179,40 @@ function TeacherAttendance() {
 
       setStudents([]);
       setAttendance({});
-
       setError("Unable to load enrolled students.");
     }
   };
 
+  const loadAttendance = async (sessionId = session?.sessionId) => {
+    if (!sessionId) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/attendance`);
+
+      if (!response.ok) {
+        throw new Error("Failed to load attendance.");
+      }
+
+      const data = await response.json();
+
+      const currentAttendance = {};
+
+      data.forEach((record) => {
+        if (String(record.sessionId) === String(sessionId)) {
+          currentAttendance[record.studentId] = record.status;
+        }
+      });
+
+      setAttendance((previous) => ({
+        ...previous,
+        ...currentAttendance,
+      }));
+    } catch (err) {
+      console.error("Failed to load attendance:", err);
+    }
+  };
   const startAttendance = async () => {
     /*
      * Double-check the current class from the latest timetable.
@@ -184,20 +222,13 @@ function TeacherAttendance() {
 
     if (!current) {
       setSelectedClass(null);
-      setError(
-        "There is no active class at the current time."
-      );
+      setError("There is no active class at the current time.");
       return;
     }
 
-    if (
-      !selectedClass ||
-      selectedClass.timetableId !== current.timetableId
-    ) {
+    if (!selectedClass || selectedClass.timetableId !== current.timetableId) {
       setSelectedClass(current);
-      setError(
-        "Only the currently running class can start attendance."
-      );
+      setError("Only the currently running class can start attendance.");
       return;
     }
 
@@ -221,15 +252,13 @@ function TeacherAttendance() {
         `${API_BASE_URL}/attendance-sessions/start?dayOfWeek=${today}&time=${currentTime}&teacherId=${teacherId}`,
         {
           method: "POST",
-        }
+        },
       );
 
       if (!response.ok) {
         const text = await response.text();
 
-        throw new Error(
-          text || "Unable to start attendance."
-        );
+        throw new Error(text || "Unable to start attendance.");
       }
 
       const data = await response.json();
@@ -238,19 +267,17 @@ function TeacherAttendance() {
 
       await loadStudents(data.classId);
 
-      setMessage(
-        "Attendance session started successfully."
-      );
+      await loadAttendance(data.sessionId);
+      setMessage("Attendance session started successfully.");
     } catch (err) {
       console.error("Failed to start attendance:", err);
 
-      setError(
-        err.message || "Unable to start attendance."
-      );
+      setError(err.message || "Unable to start attendance.");
     } finally {
       setStarting(false);
     }
   };
+ 
 
   const markStudent = (studentId, status) => {
     setAttendance((previous) => ({
@@ -259,151 +286,123 @@ function TeacherAttendance() {
     }));
   };
 
- const finishAttendance = async () => {
-  if (!session) {
-    setError("No active attendance session.");
-    return;
-  }
+  const finishAttendance = async () => {
+    if (!session) {
+      setError("No active attendance session.");
+      return;
+    }
 
-  setFinishing(true);
-  setError("");
-  setMessage("");
+    setFinishing(true);
+    setError("");
+    setMessage("");
 
-  try {
-    /*
-     * First save all students marked PRESENT.
-     * Students marked ABSENT are not sent here.
-     * Backend will mark remaining enrolled students ABSENT
-     * when the session is finished.
-     */
-    const presentStudents = students.filter(
-      (student) =>
-        attendance[student.studentId] === "PRESENT"
-    );
+    try {
+      /*
+       * First save all students marked PRESENT.
+       * Students marked ABSENT are not sent here.
+       * Backend will mark remaining enrolled students ABSENT
+       * when the session is finished.
+       */
+      const presentStudents = students.filter(
+        (student) => attendance[student.studentId] === "PRESENT",
+      );
 
-    for (const student of presentStudents) {
-      const attendanceResponse = await fetch(
-        `${API_BASE_URL}/attendance`,
-        {
+      for (const student of presentStudents) {
+        const attendanceResponse = await fetch(`${API_BASE_URL}/attendance`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-        body: JSON.stringify({
-  studentId: student.studentId,
-  classId: session.classId,
-  subjectId: session.subjectId,
-  status: "PRESENT",
-  attendanceDate: new Date()
-    .toISOString()
-    .split("T")[0],
-  markedTime: new Date().toTimeString().split(" ")[0],
-  sessionId: session.sessionId,
-}),
+          body: JSON.stringify({
+            studentId: student.studentId,
+            classId: session.classId,
+            subjectId: session.subjectId,
+            status: "PRESENT",
+            attendanceDate: new Date().toISOString().split("T")[0],
+            markedTime: new Date().toTimeString().split(" ")[0],
+            sessionId: session.sessionId,
+          }),
+        });
+
+        /*
+         * 409 means the student was already marked PRESENT
+         * by AI recognition. We can safely continue.
+         */
+        if (!attendanceResponse.ok && attendanceResponse.status !== 409) {
+          const text = await attendanceResponse.text();
+
+          throw new Error(
+            text ||
+              `Failed to save attendance for student ${student.studentId}.`,
+          );
         }
-      );
+      }
 
       /*
-       * 409 means the student was already marked PRESENT
-       * by AI recognition. We can safely continue.
+       * Now finish the session.
+       *
+       * Backend will automatically create ABSENT records
+       * for enrolled students who do not already have an
+       * attendance record for this session.
        */
-      if (
-        !attendanceResponse.ok &&
-        attendanceResponse.status !== 409
-      ) {
-        const text = await attendanceResponse.text();
+      const finishResponse = await fetch(
+        `${API_BASE_URL}/attendance-sessions/${session.sessionId}/finish`,
+        {
+          method: "POST",
+        },
+      );
 
-        throw new Error(
-          text ||
-            `Failed to save attendance for student ${student.studentId}.`
+      if (!finishResponse.ok) {
+        const text = await finishResponse.text();
+
+        throw new Error(text || "Unable to finish attendance.");
+      }
+
+      const finishedSession = await finishResponse.json();
+
+      setSession(finishedSession);
+
+      /*
+       * Reload attendance records for this session.
+       */
+      const attendanceResponse = await fetch(`${API_BASE_URL}/attendance`);
+
+      if (attendanceResponse.ok) {
+        const allRecords = await attendanceResponse.json();
+
+        const sessionRecords = allRecords.filter(
+          (record) => record.sessionId === finishedSession.sessionId,
         );
+
+        const finalAttendance = {};
+
+        sessionRecords.forEach((record) => {
+          finalAttendance[record.studentId] = record.status;
+        });
+
+        setAttendance(finalAttendance);
       }
+
+      setShowPreview(true);
+
+      setMessage("Attendance session finished. Please verify the attendance.");
+    } catch (err) {
+      console.error("Failed to finish attendance:", err);
+
+      setError(err.message || "Unable to finish attendance.");
+    } finally {
+      setFinishing(false);
     }
-
-    /*
-     * Now finish the session.
-     *
-     * Backend will automatically create ABSENT records
-     * for enrolled students who do not already have an
-     * attendance record for this session.
-     */
-    const finishResponse = await fetch(
-      `${API_BASE_URL}/attendance-sessions/${session.sessionId}/finish`,
-      {
-        method: "POST",
-      }
-    );
-
-    if (!finishResponse.ok) {
-      const text = await finishResponse.text();
-
-      throw new Error(
-        text || "Unable to finish attendance."
-      );
-    }
-
-    const finishedSession =
-      await finishResponse.json();
-
-    setSession(finishedSession);
-
-    /*
-     * Reload attendance records for this session.
-     */
-    const attendanceResponse = await fetch(
-      `${API_BASE_URL}/attendance`
-    );
-
-    if (attendanceResponse.ok) {
-      const allRecords =
-        await attendanceResponse.json();
-
-      const sessionRecords = allRecords.filter(
-        (record) =>
-          record.sessionId ===
-          finishedSession.sessionId
-      );
-
-      const finalAttendance = {};
-
-      sessionRecords.forEach((record) => {
-        finalAttendance[record.studentId] =
-          record.status;
-      });
-
-      setAttendance(finalAttendance);
-    }
-
-    setShowPreview(true);
-
-    setMessage(
-      "Attendance session finished. Please verify the attendance."
-    );
-  } catch (err) {
-    console.error(
-      "Failed to finish attendance:",
-      err
-    );
-
-    setError(
-      err.message ||
-        "Unable to finish attendance."
-    );
-  } finally {
-    setFinishing(false);
-  }
-};
+  };
 
   const getPresentCount = () => {
-    return Object.values(attendance).filter(
-      (status) => status === "PRESENT"
-    ).length;
+    return Object.values(attendance).filter((status) => status === "PRESENT")
+      .length;
   };
 
   const getAbsentCount = () => {
-    return Object.values(attendance).filter(
-      (status) => status === "ABSENT"
-    ).length;
+    return Object.values(attendance).filter((status) => status === "ABSENT")
+      .length;
   };
 
   /*
@@ -415,9 +414,7 @@ function TeacherAttendance() {
       return "--";
     }
 
-    const [hour, minute] = time
-      .split(":")
-      .map(Number);
+    const [hour, minute] = time.split(":").map(Number);
 
     const date = new Date();
 
@@ -436,36 +433,23 @@ function TeacherAttendance() {
 
   return (
     <div style={styles.page}>
-
       {/* ================= SIDEBAR ================= */}
 
       <aside style={styles.sidebar}>
-
         <div style={styles.logoArea}>
-
-          <div style={styles.logoIcon}>
-            AI
-          </div>
+          <div style={styles.logoIcon}>AI</div>
 
           <div>
-            <h2 style={styles.logoTitle}>
-              AI AttendEase
-            </h2>
+            <h2 style={styles.logoTitle}>AI AttendEase</h2>
 
-            <p style={styles.logoSubtitle}>
-              Teacher Portal
-            </p>
+            <p style={styles.logoSubtitle}>Teacher Portal</p>
           </div>
-
         </div>
 
         <nav style={styles.navigation}>
-
           <div
             style={styles.navItem}
-            onClick={() =>
-              (window.location.href = "/teacher")
-            }
+            onClick={() => (window.location.href = "/teacher")}
           >
             <span>⌂</span>
             Dashboard
@@ -473,10 +457,7 @@ function TeacherAttendance() {
 
           <div
             style={styles.navItem}
-            onClick={() =>
-              (window.location.href =
-                "/teacher/timetable")
-            }
+            onClick={() => (window.location.href = "/teacher/timetable")}
           >
             <span>▣</span>
             My Timetable
@@ -495,8 +476,7 @@ function TeacherAttendance() {
           <div
             style={styles.navItem}
             onClick={() =>
-              (window.location.href =
-                "/teacher/attendance-history")
+              (window.location.href = "/teacher/attendance-history")
             }
           >
             <span>◷</span>
@@ -505,37 +485,22 @@ function TeacherAttendance() {
 
           <div
             style={styles.navItem}
-            onClick={() =>
-              (window.location.href =
-                "/teacher/profile")
-            }
+            onClick={() => (window.location.href = "/teacher/profile")}
           >
             <span>◉</span>
             My Profile
           </div>
-
         </nav>
 
         <div style={styles.sidebarBottom}>
-
           <div style={styles.helpBox}>
-
-            <div style={styles.helpIcon}>
-              ?
-            </div>
+            <div style={styles.helpIcon}>?</div>
 
             <div>
+              <strong style={styles.helpTitle}>Need Help?</strong>
 
-              <strong style={styles.helpTitle}>
-                Need Help?
-              </strong>
-
-              <p style={styles.helpText}>
-                Contact your administrator
-              </p>
-
+              <p style={styles.helpText}>Contact your administrator</p>
             </div>
-
           </div>
 
           <button
@@ -543,126 +508,78 @@ function TeacherAttendance() {
             onClick={() => {
               localStorage.clear();
 
-              window.location.href =
-                "/teacher-login";
+              window.location.href = "/teacher-login";
             }}
           >
             <span>↪</span>
             Logout
           </button>
-
         </div>
-
       </aside>
-
 
       {/* ================= MAIN ================= */}
 
       <main style={styles.main}>
-
         {/* HEADER */}
 
         <header style={styles.header}>
-
           <div>
-
-            <button
-              onClick={goDashboard}
-              style={styles.backButton}
-            >
+            <button onClick={goDashboard} style={styles.backButton}>
               ← Back to Dashboard
             </button>
 
-            <h1 style={styles.heading}>
-              Take Attendance
-            </h1>
+            <h1 style={styles.heading}>Take Attendance</h1>
 
             <p style={styles.subHeading}>
-              Start a class session and manage
-              student attendance.
+              Start a class session and manage student attendance.
             </p>
-
           </div>
 
           <div style={styles.teacherBox}>
-
             <div style={styles.avatar}>
-              {teacher?.name
-                ? teacher.name
-                    .charAt(0)
-                    .toUpperCase()
-                : "T"}
+              {teacher?.name ? teacher.name.charAt(0).toUpperCase() : "T"}
             </div>
 
             <div>
-
               <strong style={styles.teacherName}>
                 {teacher?.name || "Teacher"}
               </strong>
 
-              <p style={styles.teacherRole}>
-                Teacher ID: {teacherId}
-              </p>
-
+              <p style={styles.teacherRole}>Teacher ID: {teacherId}</p>
             </div>
-
           </div>
-
         </header>
-
 
         {/* LOADING */}
 
         {loading && (
-          <div style={styles.infoMessage}>
-            Loading today's timetable...
-          </div>
+          <div style={styles.infoMessage}>Loading today's timetable...</div>
         )}
-
 
         {/* ERROR */}
 
-        {error && (
-          <div style={styles.errorMessage}>
-            {error}
-          </div>
-        )}
-
+        {error && <div style={styles.errorMessage}>{error}</div>}
 
         {/* SUCCESS */}
 
-        {message && (
-          <div style={styles.successMessage}>
-            {message}
-          </div>
-        )}
-
+        {message && <div style={styles.successMessage}>{message}</div>}
 
         {/* ================= CURRENT CLASS ================= */}
 
         <section style={styles.classCard}>
-
           <div style={styles.classLeft}>
-
-            <div style={styles.classIcon}>
-              📚
-            </div>
+            <div style={styles.classIcon}>📚</div>
 
             <div>
-
               <p style={styles.smallLabel}>
-                {selectedClass
-                  ? "CURRENT CLASS"
-                  : "NO ACTIVE CLASS"}
+                {selectedClass ? "CURRENT CLASS" : "NO ACTIVE CLASS"}
               </p>
 
               <h2 style={styles.classTitle}>
-                {selectedClass?.subjectName ||
-                  "No class selected"}
+                {selectedClass?.subjectName || "No class selected"}
               </h2>
 
               <p style={styles.classDetails}>
-
                 {selectedClass?.className ||
                   "There is no active class right now."}
 
@@ -670,29 +587,19 @@ function TeacherAttendance() {
                   <>
                     {" • "}
 
-                    {formatTime(
-                      selectedClass.startTime
-                    )}
+                    {formatTime(selectedClass.startTime)}
 
                     {" - "}
 
-                    {formatTime(
-                      selectedClass.endTime
-                    )}
+                    {formatTime(selectedClass.endTime)}
                   </>
                 )}
-
               </p>
-
             </div>
-
           </div>
 
-
           <div style={styles.classRight}>
-
             {!session ? (
-
               <button
                 style={{
                   ...styles.startButton,
@@ -701,223 +608,145 @@ function TeacherAttendance() {
                     : {}),
                 }}
                 onClick={startAttendance}
-                disabled={
-                  starting || !selectedClass
-                }
+                disabled={starting || !selectedClass}
               >
-                {starting
-                  ? "Starting..."
-                  : "▶ Start Attendance"}
+                {starting ? "Starting..." : "▶ Start Attendance"}
               </button>
-
             ) : (
-
               <div style={styles.sessionActive}>
-
-                <span style={styles.liveDot}>
-                </span>
-
+                <span style={styles.liveDot}></span>
                 Attendance Session Active
-
               </div>
-
             )}
-
           </div>
-
         </section>
-
 
         {/* ================= CLASS SELECTOR ================= */}
 
-        {!session &&
-          todayClasses.length > 0 && (
+        {!session && todayClasses.length > 0 && (
+          <section style={styles.selectorCard}>
+            <div style={styles.sectionHeader}>
+              <div>
+                <h2 style={styles.sectionTitle}>Today's Classes</h2>
 
-            <section style={styles.selectorCard}>
-
-              <div style={styles.sectionHeader}>
-
-                <div>
-
-                  <h2 style={styles.sectionTitle}>
-                    Today's Classes
-                  </h2>
-
-                  <p style={styles.sectionSubtitle}>
-                    Only the currently running class
-                    can be selected for attendance.
-                  </p>
-
-                </div>
-
+                <p style={styles.sectionSubtitle}>
+                  Only the currently running class can be selected for
+                  attendance.
+                </p>
               </div>
+            </div>
 
+            <div style={styles.classGrid}>
+              {todayClasses.map((item) => {
+                const current = findCurrentClass(todayClasses);
 
-              <div style={styles.classGrid}>
+                const isCurrent = current?.timetableId === item.timetableId;
 
-                {todayClasses.map((item) => {
+                const selected =
+                  selectedClass?.timetableId === item.timetableId;
 
-                  const current =
-                    findCurrentClass(
-                      todayClasses
-                    );
+                return (
+                  <button
+                    key={item.timetableId}
+                    disabled={!isCurrent}
+                    onClick={() => {
+                      if (isCurrent) {
+                        setSelectedClass(item);
+                      }
+                    }}
+                    style={{
+                      ...styles.classOption,
 
-                  const isCurrent =
-                    current?.timetableId ===
-                    item.timetableId;
+                      ...(selected ? styles.selectedClassOption : {}),
 
-                  const selected =
-                    selectedClass?.timetableId ===
-                    item.timetableId;
+                      ...(!isCurrent ? styles.disabledClassOption : {}),
+                    }}
+                  >
+                    <div style={styles.optionTime}>
+                      {formatTime(item.startTime)}
 
-                  return (
-                    <button
-                      key={item.timetableId}
-                      disabled={!isCurrent}
-                      onClick={() => {
-                        if (isCurrent) {
-                          setSelectedClass(item);
-                        }
-                      }}
-                      style={{
-                        ...styles.classOption,
+                      {" - "}
 
-                        ...(selected
-                          ? styles.selectedClassOption
-                          : {}),
+                      {formatTime(item.endTime)}
+                    </div>
 
-                        ...(!isCurrent
-                          ? styles.disabledClassOption
-                          : {}),
-                      }}
-                    >
+                    <div style={styles.optionSubject}>{item.subjectName}</div>
 
-                      <div style={styles.optionTime}>
-                        {formatTime(
-                          item.startTime
-                        )}
+                    <div style={styles.optionClass}>{item.className}</div>
 
-                        {" - "}
-
-                        {formatTime(
-                          item.endTime
-                        )}
-                      </div>
-
-                      <div style={styles.optionSubject}>
-                        {item.subjectName}
-                      </div>
-
-                      <div style={styles.optionClass}>
-                        {item.className}
-                      </div>
-
-                      <div style={styles.optionStatus}>
-
-                        {isCurrent
-                          ? "CURRENT"
-                          : new Date() <
+                    <div style={styles.optionStatus}>
+                      {isCurrent
+                        ? "CURRENT"
+                        : new Date() <
                             (() => {
-                              const [
-                                h,
-                                m,
-                              ] =
-                                item.startTime
-                                  .split(":")
-                                  .map(Number);
+                              const [h, m] = item.startTime
+                                .split(":")
+                                .map(Number);
 
-                              const date =
-                                new Date();
+                              const date = new Date();
 
-                              date.setHours(
-                                h,
-                                m,
-                                0,
-                                0
-                              );
+                              date.setHours(h, m, 0, 0);
 
                               return date;
                             })()
                           ? "UPCOMING"
                           : "COMPLETED"}
+                    </div>
 
-                      </div>
-
-                      {selected && (
-                        <div
-                          style={
-                            styles.selectedMark
-                          }
-                        >
-                          ✓
-                        </div>
-                      )}
-
-                    </button>
-                  );
-                })}
-
-              </div>
-
-            </section>
-          )}
-
-
-        {/* ================= ATTENDANCE ================= */}
-
-        {session && !showPreview && (
-
-          <section style={styles.attendanceCard}>
-
-            <div style={styles.attendanceHeader}>
-
-              <div>
-
-                <h2 style={styles.sectionTitle}>
-                  Student Attendance
-                </h2>
-
-                <p style={styles.sectionSubtitle}>
-                  Mark students manually. AI recognition
-                  will also be connected here.
-                </p>
-
-              </div>
-
-              <div style={styles.liveIndicator}>
-
-                <span style={styles.liveDot}>
-                </span>
-
-                LIVE SESSION
-
-              </div>
-
+                    {selected && <div style={styles.selectedMark}>✓</div>}
+                  </button>
+                );
+              })}
             </div>
+          </section>
+        )}
 
+       
+
+     {/* ================= ATTENDANCE ================= */}
+
+{session && !showPreview && (
+  <section style={styles.attendanceCard}>
+    <div style={styles.attendanceHeader}>
+      <div style={styles.cameraContainer}>
+        <img
+          src="http://localhost:5001/video_feed"
+          alt="AI Processed Camera"
+          style={styles.cameraVideo}
+        />
+
+        <div style={styles.cameraStatus}>
+          ● AI CAMERA LIVE
+        </div>
+      </div>
+
+      <div>
+        <h2 style={styles.sectionTitle}>
+          Student Attendance
+        </h2>
+
+        <p style={styles.sectionSubtitle}>
+          AI recognition is active. You can also mark students manually.
+        </p>
+      </div>
+
+      <div style={styles.liveIndicator}>
+        <span style={styles.liveDot}></span>
+        LIVE SESSION
+      </div>
+    </div>
 
             {/* STATS */}
 
             <div style={styles.statsGrid}>
-
               <div style={styles.statCard}>
+                <span style={styles.statLabel}>TOTAL STUDENTS</span>
 
-                <span style={styles.statLabel}>
-                  TOTAL STUDENTS
-                </span>
-
-                <strong style={styles.statValue}>
-                  {students.length}
-                </strong>
-
+                <strong style={styles.statValue}>{students.length}</strong>
               </div>
 
-
               <div style={styles.statCard}>
-
-                <span style={styles.statLabel}>
-                  PRESENT
-                </span>
+                <span style={styles.statLabel}>PRESENT</span>
 
                 <strong
                   style={{
@@ -927,15 +756,10 @@ function TeacherAttendance() {
                 >
                   {getPresentCount()}
                 </strong>
-
               </div>
 
-
               <div style={styles.statCard}>
-
-                <span style={styles.statLabel}>
-                  ABSENT
-                </span>
+                <span style={styles.statLabel}>ABSENT</span>
 
                 <strong
                   style={{
@@ -945,139 +769,74 @@ function TeacherAttendance() {
                 >
                   {getAbsentCount()}
                 </strong>
-
               </div>
-
             </div>
-
 
             {/* STUDENTS */}
 
             {students.length === 0 ? (
-
               <div style={styles.emptyStudents}>
                 No students are enrolled in this class.
               </div>
-
             ) : (
-
               <div style={styles.studentTableWrapper}>
-
                 <table style={styles.studentTable}>
-
                   <thead>
-
                     <tr>
+                      <th style={styles.th}>Student</th>
 
-                      <th style={styles.th}>
-                        Student
-                      </th>
+                      <th style={styles.th}>Student ID</th>
 
-                      <th style={styles.th}>
-                        Student ID
-                      </th>
+                      <th style={styles.th}>Status</th>
 
-                      <th style={styles.th}>
-                        Status
-                      </th>
-
-                      <th style={styles.th}>
-                        Action
-                      </th>
-
+                      <th style={styles.th}>Action</th>
                     </tr>
-
                   </thead>
 
                   <tbody>
-
                     {students.map((student) => {
-
-                      const status =
-                        attendance[
-                          student.studentId
-                        ] || "ABSENT";
+                      const status = attendance[student.studentId] || "ABSENT";
 
                       return (
-                        <tr
-                          key={student.studentId}
-                          style={styles.studentRow}
-                        >
-
+                        <tr key={student.studentId} style={styles.studentRow}>
                           <td style={styles.td}>
-
-                            <div
-                              style={
-                                styles.studentInfo
-                              }
-                            >
-
-                              <div
-                                style={
-                                  styles.studentAvatar
-                                }
-                              >
-                                {student.name
-                                  ?.charAt(0)
-                                  .toUpperCase()}
+                            <div style={styles.studentInfo}>
+                              <div style={styles.studentAvatar}>
+                                {student.name?.charAt(0).toUpperCase()}
                               </div>
 
                               <div>
-
-                                <strong>
-                                  {student.name}
-                                </strong>
-
+                                <strong>{student.name}</strong>
                               </div>
-
                             </div>
-
                           </td>
 
+                          <td style={styles.td}>{student.studentId}</td>
 
                           <td style={styles.td}>
-                            {student.studentId}
-                          </td>
-
-
-                          <td style={styles.td}>
-
                             <span
                               style={{
                                 ...styles.attendanceBadge,
 
-                                ...(status ===
-                                "PRESENT"
+                                ...(status === "PRESENT"
                                   ? styles.presentBadge
                                   : styles.absentBadge),
                               }}
                             >
                               {status}
                             </span>
-
                           </td>
 
-
                           <td style={styles.td}>
-
-                            <div
-                              style={
-                                styles.actionButtons
-                              }
-                            >
-
+                            <div style={styles.actionButtons}>
                               <button
                                 onClick={() =>
-                                  markStudent(
-                                    student.studentId,
-                                    "PRESENT"
-                                  )
+                                  markStudent(student.studentId, "PRESENT")
                                 }
                                 style={{
                                   ...styles.presentButton,
 
-                                  ...(status ===
-                                  "PRESENT"
+                                  ...(status === "PRESENT"
                                     ? styles.presentActive
                                     : {}),
                                 }}
@@ -1087,55 +846,38 @@ function TeacherAttendance() {
 
                               <button
                                 onClick={() =>
-                                  markStudent(
-                                    student.studentId,
-                                    "ABSENT"
-                                  )
+                                  markStudent(student.studentId, "ABSENT")
                                 }
                                 style={{
                                   ...styles.absentButton,
 
-                                  ...(status ===
-                                  "ABSENT"
+                                  ...(status === "ABSENT"
                                     ? styles.absentActive
                                     : {}),
                                 }}
                               >
                                 ✕ Absent
                               </button>
-
                             </div>
-
                           </td>
-
                         </tr>
                       );
                     })}
-
                   </tbody>
-
                 </table>
-
               </div>
             )}
-
 
             {/* FINISH */}
 
             <div style={styles.finishArea}>
-
               <div>
-
-                <strong>
-                  Ready to finish?
-                </strong>
+                <strong>Ready to finish?</strong>
 
                 <p style={styles.finishText}>
-                  Students not marked present will
-                  remain absent when the session is
-                  finished.
+                  Students not marked present will remain absent when the
+                  session is finished.
                 </p>
-
               </div>
 
               <button
@@ -1143,220 +885,198 @@ function TeacherAttendance() {
                 onClick={finishAttendance}
                 disabled={finishing}
               >
-                {finishing
-                  ? "Finishing..."
-                  : "Finish Attendance"}
+                {finishing ? "Finishing..." : "Finish Attendance"}
               </button>
-
             </div>
-
           </section>
         )}
-
 
         {/* ================= PREVIEW ================= */}
 
         {showPreview && session && (
-
           <section style={styles.previewCard}>
-
             <div style={styles.previewHeader}>
-
               <div>
+                <div style={styles.previewCheck}>✓</div>
 
-                <div style={styles.previewCheck}>
-                  ✓
-                </div>
-
-                <h2 style={styles.previewTitle}>
-                  Attendance Preview
-                </h2>
+                <h2 style={styles.previewTitle}>Attendance Preview</h2>
 
                 <p style={styles.previewSubtitle}>
-                  Session #{session.sessionId} has
-                  been completed.
+                  Session #{session.sessionId} has been completed.
                 </p>
-
               </div>
-
             </div>
-
 
             {/* SUMMARY */}
 
             <div style={styles.previewStats}>
-
               <div style={styles.previewStat}>
+                <span>Total Students</span>
 
-                <span>
-                  Total Students
-                </span>
-
-                <strong>
-                  {students.length}
-                </strong>
-
+                <strong>{students.length}</strong>
               </div>
 
-
               <div style={styles.previewStat}>
+                <span>Present</span>
 
-                <span>
-                  Present
-                </span>
-
-                <strong
-                  style={{ color: "#16a34a" }}
-                >
+                <strong style={{ color: "#16a34a" }}>
                   {getPresentCount()}
                 </strong>
-
               </div>
-
 
               <div style={styles.previewStat}>
+                <span>Absent</span>
 
-                <span>
-                  Absent
-                </span>
-
-                <strong
-                  style={{ color: "#dc2626" }}
-                >
-                  {getAbsentCount()}
-                </strong>
-
+                <strong style={{ color: "#dc2626" }}>{getAbsentCount()}</strong>
               </div>
-
             </div>
-
 
             {/* PREVIEW TABLE */}
 
             <div style={styles.studentTableWrapper}>
-
               <table style={styles.studentTable}>
-
                 <thead>
-
                   <tr>
+                    <th style={styles.th}>Student</th>
 
-                    <th style={styles.th}>
-                      Student
-                    </th>
+                    <th style={styles.th}>Student ID</th>
 
-                    <th style={styles.th}>
-                      Student ID
-                    </th>
-
-                    <th style={styles.th}>
-                      Final Status
-                    </th>
-
+                    <th style={styles.th}>Final Status</th>
                   </tr>
-
                 </thead>
 
                 <tbody>
-
                   {students.map((student) => {
-
-                    const status =
-                      attendance[
-                        student.studentId
-                      ] || "ABSENT";
+                    const status = attendance[student.studentId] || "ABSENT";
 
                     return (
-                      <tr
-                        key={student.studentId}
-                        style={styles.studentRow}
-                      >
-
+                      <tr key={student.studentId} style={styles.studentRow}>
                         <td style={styles.td}>
-                          <strong>
-                            {student.name}
-                          </strong>
+                          <strong>{student.name}</strong>
                         </td>
 
-                        <td style={styles.td}>
-                          {student.studentId}
-                        </td>
+                        <td style={styles.td}>{student.studentId}</td>
 
                         <td style={styles.td}>
-
                           <span
                             style={{
                               ...styles.attendanceBadge,
 
-                              ...(status ===
-                              "PRESENT"
+                              ...(status === "PRESENT"
                                 ? styles.presentBadge
                                 : styles.absentBadge),
                             }}
                           >
                             {status}
                           </span>
-
                         </td>
-
                       </tr>
                     );
-
                   })}
-
                 </tbody>
-
               </table>
-
             </div>
-
 
             {/* SAVE AREA */}
 
             <div style={styles.saveArea}>
-
               <div>
-
-                <strong>
-                  Verify before saving
-                </strong>
+                <strong>Verify before saving</strong>
 
                 <p style={styles.finishText}>
-                  The final Save Attendance action
-                  will commit the attendance records
-                  to the database.
+                  Attendance records have already been stored by the active
+                  attendance session. Use Save Attendance to verify the saved records.
                 </p>
-
               </div>
 
               <button
                 style={styles.saveButton}
-                onClick={() => {
-                  setMessage(
-                    "Preview verified. Database save will be connected in the next step."
-                  );
+                onClick={async () => {
+                  try {
+                    setError("");
+                    setMessage("Verifying attendance records...");
+
+                    const response = await fetch(
+                      `${API_BASE_URL}/attendance`,
+                    );
+
+                    if (!response.ok) {
+                      throw new Error("Failed to verify attendance records.");
+                    }
+
+                    const data = await response.json();
+
+                    const sessionRecords = data.filter(
+                      (record) =>
+                        String(record.sessionId) ===
+                        String(session.sessionId),
+                    );
+
+                    const finalAttendance = {};
+
+                    sessionRecords.forEach((record) => {
+                      finalAttendance[record.studentId] = record.status;
+                    });
+
+                    setAttendance(finalAttendance);
+
+                    setMessage(
+                      `Attendance saved successfully. ${sessionRecords.length} records found for session #${session.sessionId}.`,
+                    );
+                  } catch (err) {
+                    console.error(
+                      "Failed to verify saved attendance:",
+                      err,
+                    );
+
+                    setError(
+                      err.message ||
+                        "Unable to verify saved attendance.",
+                    );
+                  }
                 }}
               >
                 ✓ Save Attendance
               </button>
-
             </div>
-
           </section>
         )}
-
       </main>
-
     </div>
   );
 }
-
 
 /* ========================================================= */
 /* STYLES */
 /* ========================================================= */
 
 const styles = {
+  cameraContainer: {
+    position: "relative",
+    background: "#0f172a",
+    borderRadius: "12px",
+    margin: "20px",
+    overflow: "hidden",
+    maxWidth: "720px",
+  },
+
+  cameraVideo: {
+    width: "100%",
+    display: "block",
+    background: "#000000",
+  },
+
+  cameraStatus: {
+    position: "absolute",
+    top: "12px",
+    left: "12px",
+    padding: "6px 10px",
+    background: "#dc2626",
+    color: "#ffffff",
+    borderRadius: "6px",
+    fontSize: "10px",
+    fontWeight: "800",
+  },
 
   page: {
     minHeight: "100vh",
@@ -1692,8 +1412,7 @@ const styles = {
 
   classGrid: {
     display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(210px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
     gap: "12px",
   },
 
@@ -1789,8 +1508,7 @@ const styles = {
 
   statsGrid: {
     display: "grid",
-    gridTemplateColumns:
-      "repeat(3, 1fr)",
+    gridTemplateColumns: "repeat(3, 1fr)",
     gap: "12px",
     padding: "20px",
     background: "#f8fafc",

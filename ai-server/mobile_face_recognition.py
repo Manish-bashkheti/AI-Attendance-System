@@ -4,6 +4,9 @@ import requests
 import time
 import urllib.request
 import numpy as np
+import threading
+import signal
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -29,10 +32,70 @@ STUDENTS_FOLDER = os.path.join(
 BACKEND_URL = "http://localhost:8080/attendance"
 
 # Mobile camera snapshot endpoint
-CAMERA_URL = "http://192.168.31.221:8080/shot.jpg"
+CAMERA_URL = "http://172.21.138.159:8080/shot.jpg"
 
 registered_students = {}
 present_students = set()
+
+
+# Browser video stream: serves the processed OpenCV frame as MJPEG.
+STREAM_HOST = "0.0.0.0"
+STREAM_PORT = 5001
+latest_jpeg = None
+frame_lock = threading.Lock()
+stop_event = threading.Event()
+stream_server = None
+
+
+class VideoStreamHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path != "/video_feed":
+            self.send_error(404, "Not Found")
+            return
+
+        self.send_response(200)
+        self.send_header("Age", "0")
+        self.send_header("Cache-Control", "no-cache, private")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+        self.end_headers()
+
+        try:
+            while True:
+                with frame_lock:
+                    frame_bytes = latest_jpeg
+
+                if frame_bytes is None:
+                    time.sleep(0.05)
+                    continue
+
+                self.wfile.write(b"--frame\r\n")
+                self.wfile.write(b"Content-Type: image/jpeg\r\n")
+                self.wfile.write(
+                    f"Content-Length: {len(frame_bytes)}\r\n\r\n".encode("ascii")
+                )
+                self.wfile.write(frame_bytes)
+                self.wfile.write(b"\r\n")
+                time.sleep(0.03)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass
+
+    def log_message(self, format, *args):
+        return
+
+
+def start_video_stream_server():
+    server = ThreadingHTTPServer((STREAM_HOST, STREAM_PORT), VideoStreamHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    print(f"Processed video stream: http://localhost:{STREAM_PORT}/video_feed")
+    return server
+
+
+def request_shutdown(signum=None, frame=None):
+    """Ask the camera loop to stop; used for Ctrl+C and process termination."""
+    stop_event.set()
+
 
 attendance_started = False
 
@@ -118,28 +181,19 @@ def send_attendance(student_id, session_id):
             timeout=5
         )
 
-        if response.status_code == 200:
-            print(
-                f"Attendance marked successfully: "
-                f"{student_id}"
-            )
+        if response.status_code in (200, 201, 204):
+            print(f"Attendance marked successfully: {student_id}")
+            return True
+        if response.status_code == 409:
+            print(f"Attendance already marked: {student_id}")
+            return True
 
-        elif response.status_code == 409:
-            print(
-                f"Attendance already marked: "
-                f"{student_id}"
-            )
-
-        else:
-            print(
-                f"Attendance API error: "
-                f"{response.status_code} - {response.text}"
-            )
+        print(f"Attendance API error: {response.status_code} - {response.text}")
+        return False
 
     except requests.RequestException as exception:
-        print(
-            f"Could not connect to backend: {exception}"
-        )
+        print(f"Could not connect to backend: {exception}")
+        return False
 
 
 def mark_present(student_id, student_name):
@@ -149,20 +203,14 @@ def mark_present(student_id, student_name):
     if student_id in present_students:
         return
 
+    succeeded = send_attendance(student_id, current_session_id)
+    if not succeeded:
+        # Do not cache a failed attempt; the next frame can retry.
+        return
+
     present_students.add(student_id)
-
     current_time = datetime.now().strftime("%H:%M:%S")
-
-    print(
-        f"Attendance marked: "
-        f"{student_name} ({student_id}) "
-        f"at {current_time}"
-    )
-
-    send_attendance(
-        student_id,
-        current_session_id
-    )
+    print(f"Attendance marked: {student_name} ({student_id}) at {current_time}")
 
 
 def finish_attendance():
@@ -327,11 +375,8 @@ print("Connecting to mobile camera...")
 print(f"Camera URL: {CAMERA_URL}")
 
 try:
-    urllib.request.urlopen(
-        CAMERA_URL,
-        timeout=10
-    )
-
+    with urllib.request.urlopen(CAMERA_URL, timeout=10) as camera_response:
+        camera_response.read(1)
     print("Mobile camera connected successfully.")
 
 except Exception as exception:
@@ -344,22 +389,21 @@ except Exception as exception:
 print()
 print("Mobile AI face recognition started.")
 print("Press 'q' to quit.")
+signal.signal(signal.SIGINT, request_shutdown)
+if hasattr(signal, "SIGTERM"):
+    signal.signal(signal.SIGTERM, request_shutdown)
+stream_server = start_video_stream_server()
 
 
 # --------------------------------------------------
 # Main camera loop
 # --------------------------------------------------
 
-while True:
+while not stop_event.is_set():
 
     try:
-
-        response = urllib.request.urlopen(
-            CAMERA_URL,
-            timeout=5
-        )
-
-        image_data = response.read()
+        with urllib.request.urlopen(CAMERA_URL, timeout=5) as response:
+            image_data = response.read()
 
         image_array = np.frombuffer(
             image_data,
@@ -523,21 +567,24 @@ while True:
 
 
     # ----------------------------------------------
+    # Publish the processed frame to the browser
+    # ----------------------------------------------
+
+    success, encoded_frame = cv2.imencode(
+        ".jpg",
+        frame,
+        [int(cv2.IMWRITE_JPEG_QUALITY), 75]
+    )
+    if success:
+        with frame_lock:
+            latest_jpeg = encoded_frame.tobytes()
+
+    # ----------------------------------------------
     # Show mobile camera
     # ----------------------------------------------
 
-    cv2.imshow(
-        "AI Attendance - Mobile Camera",
-        frame
-    )
-
-
-    # ----------------------------------------------
-    # Quit
-    # ----------------------------------------------
-
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
+    # The dashboard displays this processed stream; no separate OpenCV window is required.
+    # Press Ctrl+C or terminate the Python process to stop the service.
 
 
 # --------------------------------------------------

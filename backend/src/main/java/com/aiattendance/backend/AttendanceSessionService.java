@@ -31,38 +31,38 @@ public class AttendanceSessionService {
         this.enrollmentRepository = enrollmentRepository;
     }
 
-public AttendanceSession startSession(
-        String dayOfWeek,
-        LocalTime currentTime,
-        Integer teacherId) {
+    public AttendanceSession startSession(
+            String dayOfWeek,
+            LocalTime currentTime,
+            Integer teacherId) {
 
-    List<Timetable> currentTimetables =
-            timetableRepository
-                    .findByDayOfWeekAndTeacherIdAndStartTimeLessThanEqualAndEndTimeGreaterThanEqual(
-                            dayOfWeek,
-                            teacherId,
-                            currentTime,
-                            currentTime);
+        List<Timetable> currentTimetables =
+                timetableRepository
+                        .findByDayOfWeekAndTeacherIdAndStartTimeLessThanEqualAndEndTimeGreaterThanEqual(
+                                dayOfWeek,
+                                teacherId,
+                                currentTime,
+                                currentTime);
 
-    if (currentTimetables.isEmpty()) {
-        throw new RuntimeException(
-                "No timetable found for this teacher at the current time.");
+        if (currentTimetables.isEmpty()) {
+            throw new RuntimeException(
+                    "No timetable found for this teacher at the current time.");
+        }
+
+        Timetable timetable = currentTimetables.get(0);
+
+        AttendanceSession session = new AttendanceSession();
+
+        session.setClassId(timetable.getClassId());
+        session.setSubjectId(timetable.getSubjectId());
+        session.setTeacherId(timetable.getTeacherId());
+
+        session.setSessionDate(LocalDate.now());
+        session.setStartTime(currentTime);
+        session.setStatus("STARTED");
+
+        return attendanceSessionRepository.save(session);
     }
-
-    Timetable timetable = currentTimetables.get(0);
-
-    AttendanceSession session = new AttendanceSession();
-
-    session.setClassId(timetable.getClassId());
-    session.setSubjectId(timetable.getSubjectId());
-    session.setTeacherId(timetable.getTeacherId());
-
-    session.setSessionDate(LocalDate.now());
-    session.setStartTime(currentTime);
-    session.setStatus("STARTED");
-
-    return attendanceSessionRepository.save(session);
-}
 
     public AttendanceSession getActiveSession() {
 
@@ -92,18 +92,16 @@ public AttendanceSession startSession(
         }
 
         List<Enrollment> enrollments =
-                enrollmentRepository
-                        .findByClassId(session.getClassId());
+                enrollmentRepository.findByClassId(session.getClassId());
 
         for (Enrollment enrollment : enrollments) {
 
             Integer studentId = enrollment.getStudentId();
 
             boolean attendanceExists =
-                    attendanceRepository
-                            .existsBySessionIdAndStudentId(
-                                    sessionId,
-                                    studentId);
+                    attendanceRepository.existsBySessionIdAndStudentId(
+                            sessionId,
+                            studentId);
 
             if (!attendanceExists) {
 
@@ -112,8 +110,7 @@ public AttendanceSession startSession(
                 attendance.setStudentId(studentId);
                 attendance.setClassId(session.getClassId());
                 attendance.setSubjectId(session.getSubjectId());
-                attendance.setAttendanceDate(
-                        session.getSessionDate());
+                attendance.setAttendanceDate(session.getSessionDate());
                 attendance.setStatus("ABSENT");
                 attendance.setMarkedTime(LocalTime.now());
                 attendance.setSessionId(sessionId);

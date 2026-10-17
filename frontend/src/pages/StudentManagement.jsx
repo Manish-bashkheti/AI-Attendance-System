@@ -1,3 +1,4 @@
+import "./AdminManagement.css";
 import { useEffect, useState } from "react";
 import axios from "axios";
 
@@ -380,7 +381,7 @@ function StudentManagement() {
     };
 
     return (
-        <div className="p-6">
+        <div className="admin-management-page admin-student-page p-6">
 
             <h1 className="text-3xl font-bold mb-6">
                 Student Management

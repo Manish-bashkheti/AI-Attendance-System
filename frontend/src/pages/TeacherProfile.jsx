@@ -1,450 +1,185 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import "./TeacherProfile.css";
 
-function TeacherProfile() {
-    const teacherId = localStorage.getItem("teacherId");
-
-    const [profile, setProfile] = useState({
-        name: "",
-        dateOfBirth: "",
-        gender: "",
-        phone: "",
-        email: "",
-        address: "",
-        department: "",
-        ugQualification: "",
-        ugSpecialization: "",
-        pgQualification: "",
-        pgSpecialization: "",
-        doctorate: "",
-        certifications: "",
-        experience: "",
-        joiningDate: ""
-    });
-    useEffect(() => {
-    const fetchProfile = async () => {
-        try {
-            const response = await fetch(
-                `http://localhost:8080/teachers/${teacherId}`
-            );
-
-            if (!response.ok) {
-                throw new Error("Failed to load teacher profile.");
-            }
-
-            const data = await response.json();
-
-            setProfile({
-                name: data.name || "",
-                dateOfBirth: data.dateOfBirth || "",
-                gender: data.gender || "",
-                phone: data.phone || "",
-                email: data.email || "",
-                address: data.address || "",
-                department: data.department || "",
-                ugQualification: data.ugQualification || "",
-                ugSpecialization: data.ugSpecialization || "",
-                pgQualification: data.pgQualification || "",
-                pgSpecialization: data.pgSpecialization || "",
-                doctorate: data.doctorate || "",
-                certifications: data.certifications || "",
-                experience: data.experience ?? "",
-                joiningDate: data.joiningDate || ""
-            });
-
-        } catch (error) {
-            console.error(
-                "Error loading teacher profile:",
-                error
-            );
-        }
-    };
-
-    if (teacherId) {
-        fetchProfile();
-    }
-}, [teacherId]);
-
-    const handleChange = (event) => {
-        const { name, value } = event.target;
-
-        setProfile({
-            ...profile,
-            [name]: value
-        });
-    };
-
-   const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    try {
-        const response = await fetch(
-            `http://localhost:8080/teachers/${teacherId}`,
-            {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    name: profile.name,
-                    dateOfBirth: profile.dateOfBirth,
-                    gender: profile.gender,
-                    phone: profile.phone,
-                    email: profile.email,
-                    address: profile.address,
-                    department: profile.department,
-                    ugQualification: profile.ugQualification,
-                    ugSpecialization: profile.ugSpecialization,
-                    pgQualification: profile.pgQualification,
-                    pgSpecialization: profile.pgSpecialization,
-                    doctorate: profile.doctorate,
-                    certifications: profile.certifications,
-                    experience: profile.experience === ""
-                        ? null
-                        : Number(profile.experience),
-                    joiningDate: profile.joiningDate
-                })
-            }
-        );
-
-        if (!response.ok) {
-            throw new Error("Failed to save teacher profile.");
-        }
-
-        alert("Profile saved successfully.");
-
-    } catch (error) {
-        console.error("Error saving teacher profile:", error);
-        alert("Failed to save profile.");
-    }
+const EMPTY_PROFILE = {
+  name: "", dateOfBirth: "", gender: "", phone: "", email: "", address: "",
+  department: "", ugQualification: "", ugSpecialization: "", pgQualification: "",
+  pgSpecialization: "", doctorate: "", certifications: "", experience: "", joiningDate: ""
 };
 
-    return (
-        <div className="min-h-screen bg-slate-950 px-6 py-8 text-white">
+function TeacherProfile() {
+  const teacherId = localStorage.getItem("teacherId");
+  const [profile, setProfile] = useState(EMPTY_PROFILE);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState({ type: "", text: "" });
 
-            <div className="mx-auto max-w-5xl">
+  useEffect(() => {
+    let cancelled = false;
+    const fetchProfile = async () => {
+      if (!teacherId) {
+        setNotice({ type: "error", text: "Teacher ID nahi mila. Please dobara login karein." });
+        setLoading(false);
+        return;
+      }
+      try {
+        const response = await fetch(`http://localhost:8080/teachers/${teacherId}`);
+        if (!response.ok) throw new Error("Profile load nahi ho payi. Backend connection check karein.");
+        const data = await response.json();
+        if (!cancelled) {
+          setProfile({
+            name: data.name || "", dateOfBirth: data.dateOfBirth || "", gender: data.gender || "",
+            phone: data.phone || "", email: data.email || "", address: data.address || "",
+            department: data.department || "", ugQualification: data.ugQualification || "",
+            ugSpecialization: data.ugSpecialization || "", pgQualification: data.pgQualification || "",
+            pgSpecialization: data.pgSpecialization || "", doctorate: data.doctorate || "",
+            certifications: data.certifications || "", experience: data.experience ?? "",
+            joiningDate: data.joiningDate || ""
+          });
+        }
+      } catch (error) {
+        if (!cancelled) setNotice({ type: "error", text: error.message || "Profile load karte waqt error aaya." });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchProfile();
+    return () => { cancelled = true; };
+  }, [teacherId]);
 
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold">
-                        My Profile
-                    </h1>
+  const initials = useMemo(() => {
+    const parts = profile.name.trim().split(/\s+/).filter(Boolean);
+    return parts.length ? parts.slice(0, 2).map((part) => part[0].toUpperCase()).join("") : "TC";
+  }, [profile.name]);
 
-                    <p className="mt-2 text-slate-400">
-                        Complete and manage your teacher profile.
-                    </p>
-                </div>
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setProfile((current) => ({ ...current, [name]: value }));
+    if (notice.text) setNotice({ type: "", text: "" });
+  };
 
-                <form
-                    onSubmit={handleSubmit}
-                    className="space-y-8"
-                >
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setNotice({ type: "", text: "" });
+    try {
+      const response = await fetch(`http://localhost:8080/teachers/${teacherId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: profile.name, dateOfBirth: profile.dateOfBirth, gender: profile.gender,
+          phone: profile.phone, email: profile.email, address: profile.address,
+          department: profile.department, ugQualification: profile.ugQualification,
+          ugSpecialization: profile.ugSpecialization, pgQualification: profile.pgQualification,
+          pgSpecialization: profile.pgSpecialization, doctorate: profile.doctorate,
+          certifications: profile.certifications,
+          experience: profile.experience === "" ? null : Number(profile.experience),
+          joiningDate: profile.joiningDate
+        })
+      });
+      if (!response.ok) throw new Error("Profile save nahi hui. Please details check karke dobara try karein.");
+      setNotice({ type: "success", text: "Your profile has been saved successfully." });
+    } catch (error) {
+      setNotice({ type: "error", text: error.message || "Profile save karte waqt error aaya." });
+    } finally {
+      setSaving(false);
+    }
+  };
 
-                    {/* Personal Information */}
-                    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+  const completionFields = [profile.name, profile.email, profile.phone, profile.department, profile.ugQualification, profile.joiningDate];
+  const completion = Math.round((completionFields.filter(Boolean).length / completionFields.length) * 100);
 
-                        <h2 className="mb-6 text-xl font-semibold">
-                            Personal Information
-                        </h2>
+  const field = (label, name, options = {}) => (
+    <div className={`tp-field ${options.full ? "tp-field-full" : ""}`} key={name}>
+      <label htmlFor={`tp-${name}`}>{label}{options.required && <span className="tp-required"> *</span>}</label>
+      {options.type === "select" ? (
+        <select id={`tp-${name}`} name={name} value={profile[name]} onChange={handleChange}>
+          <option value="">{options.placeholder || "Select option"}</option>
+          {options.options.map((item) => <option value={item} key={item}>{item}</option>)}
+        </select>
+      ) : options.type === "textarea" ? (
+        <textarea id={`tp-${name}`} name={name} value={profile[name]} onChange={handleChange} placeholder={options.placeholder || `Enter ${label.toLowerCase()}`} rows={3} />
+      ) : (
+        <input id={`tp-${name}`} type={options.type || "text"} name={name} value={profile[name]} onChange={handleChange} placeholder={options.placeholder || `Enter ${label.toLowerCase()}`} min={options.min} />
+      )}
+    </div>
+  );
 
-                        <div className="grid gap-5 md:grid-cols-2">
+  return (
+    <main className="tp-page">
+      <div className="tp-shell">
+        <header className="tp-page-heading">
+          <div>
+            <div className="tp-eyebrow"><span className="tp-eyebrow-dot" /> FACULTY WORKSPACE</div>
+            <h1>My Profile</h1>
+            <p>Manage your personal details, qualifications and professional information.</p>
+          </div>
+          <div className="tp-heading-chip"><span>●</span> Teacher account</div>
+        </header>
 
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    Teacher ID
-                                </label>
-
-                                <input
-                                    type="text"
-                                    value={teacherId || ""}
-                                    disabled
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-slate-400"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    Full Name
-                                </label>
-
-                                <input
-                                    type="text"
-                                    name="name"
-                                    value={profile.name}
-                                    onChange={handleChange}
-                                    placeholder="Enter full name"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    Date of Birth
-                                </label>
-
-                                <input
-                                    type="date"
-                                    name="dateOfBirth"
-                                    value={profile.dateOfBirth}
-                                    onChange={handleChange}
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    Gender
-                                </label>
-
-                                <select
-                                    name="gender"
-                                    value={profile.gender}
-                                    onChange={handleChange}
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                >
-                                    <option value="">
-                                        Select Gender
-                                    </option>
-                                    <option value="Male">
-                                        Male
-                                    </option>
-                                    <option value="Female">
-                                        Female
-                                    </option>
-                                    <option value="Other">
-                                        Other
-                                    </option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    Phone
-                                </label>
-
-                                <input
-                                    type="tel"
-                                    name="phone"
-                                    value={profile.phone}
-                                    onChange={handleChange}
-                                    placeholder="Enter phone number"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    Email / User ID
-                                </label>
-
-                                <input
-                                    type="email"
-                                    name="email"
-                                    value={profile.email}
-                                    onChange={handleChange}
-                                    placeholder="Enter email"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div className="md:col-span-2">
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    Address
-                                </label>
-
-                                <textarea
-                                    name="address"
-                                    value={profile.address}
-                                    onChange={handleChange}
-                                    placeholder="Enter address"
-                                    rows="3"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                        </div>
-                    </section>
-
-                    {/* Academic Information */}
-                    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-
-                        <h2 className="mb-6 text-xl font-semibold">
-                            Academic Information
-                        </h2>
-
-                        <div className="grid gap-5 md:grid-cols-2">
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    UG Qualification
-                                </label>
-
-                                <input
-                                    type="text"
-                                    name="ugQualification"
-                                    value={profile.ugQualification}
-                                    onChange={handleChange}
-                                    placeholder="e.g. B.Tech"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    UG Specialization
-                                </label>
-
-                                <input
-                                    type="text"
-                                    name="ugSpecialization"
-                                    value={profile.ugSpecialization}
-                                    onChange={handleChange}
-                                    placeholder="e.g. Computer Science"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    PG Qualification
-                                </label>
-
-                                <input
-                                    type="text"
-                                    name="pgQualification"
-                                    value={profile.pgQualification}
-                                    onChange={handleChange}
-                                    placeholder="e.g. M.Tech"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    PG Specialization
-                                </label>
-
-                                <input
-                                    type="text"
-                                    name="pgSpecialization"
-                                    value={profile.pgSpecialization}
-                                    onChange={handleChange}
-                                    placeholder="e.g. Artificial Intelligence"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    Doctorate
-                                </label>
-
-                                <select
-                                    name="doctorate"
-                                    value={profile.doctorate}
-                                    onChange={handleChange}
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                >
-                                    <option value="">
-                                        Select
-                                    </option>
-                                    <option value="Yes">
-                                        Yes
-                                    </option>
-                                    <option value="No">
-                                        No
-                                    </option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    Certifications
-                                </label>
-
-                                <input
-                                    type="text"
-                                    name="certifications"
-                                    value={profile.certifications}
-                                    onChange={handleChange}
-                                    placeholder="Enter certifications"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                        </div>
-                    </section>
-
-                    {/* Professional Information */}
-                    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-
-                        <h2 className="mb-6 text-xl font-semibold">
-                            Professional Information
-                        </h2>
-
-                        <div className="grid gap-5 md:grid-cols-2">
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    Department
-                                </label>
-
-                                <input
-                                    type="text"
-                                    name="department"
-                                    value={profile.department}
-                                    onChange={handleChange}
-                                    placeholder="Enter department"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    Experience (Years)
-                                </label>
-
-                                <input
-                                    type="number"
-                                    name="experience"
-                                    value={profile.experience}
-                                    onChange={handleChange}
-                                    placeholder="Enter experience"
-                                    min="0"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm text-slate-300">
-                                    Joining Date
-                                </label>
-
-                                <input
-                                    type="date"
-                                    name="joiningDate"
-                                    value={profile.joiningDate}
-                                    onChange={handleChange}
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                />
-                            </div>
-
-                        </div>
-                    </section>
-
-                    <div className="flex justify-end">
-                        <button
-                            type="submit"
-                            className="rounded-lg bg-blue-600 px-8 py-3 font-semibold text-white transition hover:bg-blue-500"
-                        >
-                            Save Profile
-                        </button>
-                    </div>
-
-                </form>
-
+        <section className="tp-hero-card">
+          <div className="tp-hero-glow tp-hero-glow-one" /><div className="tp-hero-glow tp-hero-glow-two" />
+          <div className="tp-profile-identity">
+            <div className="tp-avatar-wrap"><div className="tp-avatar">{initials}</div><span className="tp-avatar-status" /></div>
+            <div className="tp-identity-copy">
+              <span className="tp-identity-label">FACULTY PROFILE</span>
+              <h2>{profile.name || (loading ? "Loading profile…" : "Your name")}</h2>
+              <p>{profile.department || "Department not added yet"}</p>
+              <div className="tp-identity-meta"><span className="tp-id-pill">ID&nbsp; {teacherId || "—"}</span><span className="tp-active-pill"><i /> Active account</span></div>
             </div>
+          </div>
+          <div className="tp-completion">
+            <div className="tp-completion-top"><span>Profile completion</span><strong>{completion}%</strong></div>
+            <div className="tp-progress-track"><div className="tp-progress-value" style={{ width: `${completion}%` }} /></div>
+            <p>{completion === 100 ? "Great! Your key details are complete." : "Add your key details to complete your profile."}</p>
+          </div>
+        </section>
 
-        </div>
-    );
+        {notice.text && <div className={`tp-notice tp-notice-${notice.type}`} role="status"><span>{notice.type === "success" ? "✓" : "!"}</span>{notice.text}</div>}
+
+        {loading ? <div className="tp-loading"><span className="tp-spinner" /> Loading your profile details…</div> : (
+          <form onSubmit={handleSubmit} className="tp-form">
+            <section className="tp-section-card">
+              <div className="tp-section-heading"><div className="tp-section-icon tp-icon-blue">01</div><div><h3>Personal information</h3><p>Basic details used to identify your faculty account.</p></div></div>
+              <div className="tp-fields-grid">
+                <div className="tp-field"><label htmlFor="tp-teacherId">Teacher ID</label><input id="tp-teacherId" value={teacherId || ""} disabled /><small>Your assigned ID cannot be edited.</small></div>
+                {field("Full name", "name", { required: true })}
+                {field("Date of birth", "dateOfBirth", { type: "date" })}
+                {field("Gender", "gender", { type: "select", placeholder: "Select gender", options: ["Male", "Female", "Other"] })}
+                {field("Phone number", "phone", { type: "tel", placeholder: "+91 00000 00000" })}
+                {field("Email address", "email", { type: "email", placeholder: "name@college.edu" })}
+                {field("Residential address", "address", { type: "textarea", full: true, placeholder: "Enter your address" })}
+              </div>
+            </section>
+
+            <section className="tp-section-card">
+              <div className="tp-section-heading"><div className="tp-section-icon tp-icon-purple">02</div><div><h3>Academic background</h3><p>Your education, specializations and certifications.</p></div></div>
+              <div className="tp-fields-grid">
+                {field("UG qualification", "ugQualification", { placeholder: "e.g. B.Tech, B.Sc." })}
+                {field("UG specialization", "ugSpecialization", { placeholder: "e.g. Computer Science" })}
+                {field("PG qualification", "pgQualification", { placeholder: "e.g. M.Tech, M.Sc." })}
+                {field("PG specialization", "pgSpecialization", { placeholder: "e.g. Artificial Intelligence" })}
+                {field("Doctorate", "doctorate", { type: "select", placeholder: "Select status", options: ["Yes", "No", "Pursuing"] })}
+                {field("Certifications", "certifications", { placeholder: "e.g. AWS, Java, Python" })}
+              </div>
+            </section>
+
+            <section className="tp-section-card">
+              <div className="tp-section-heading"><div className="tp-section-icon tp-icon-green">03</div><div><h3>Professional details</h3><p>Your department and experience at the institution.</p></div></div>
+              <div className="tp-fields-grid">
+                {field("Department", "department", { placeholder: "e.g. Computer Science & Engineering" })}
+                {field("Teaching experience (years)", "experience", { type: "number", min: "0", placeholder: "e.g. 5" })}
+                {field("Joining date", "joiningDate", { type: "date" })}
+              </div>
+            </section>
+
+            <div className="tp-form-footer"><div className="tp-save-hint"><span>🔒</span><span>Your profile information is managed securely within your institution.</span></div><div className="tp-form-actions"><button type="button" className="tp-btn tp-btn-secondary" onClick={() => window.location.reload()}>Discard changes</button><button type="submit" className="tp-btn tp-btn-primary" disabled={saving}><span>{saving ? "Saving…" : "Save changes"}</span><span aria-hidden="true">{saving ? "◌" : "→"}</span></button></div></div>
+          </form>
+        )}
+        <footer className="tp-footer"><span>AttendAI · Faculty portal</span><span>Profile & account settings</span></footer>
+      </div>
+    </main>
+  );
 }
 
 export default TeacherProfile;

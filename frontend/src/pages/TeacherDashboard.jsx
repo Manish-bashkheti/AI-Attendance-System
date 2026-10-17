@@ -1,3 +1,4 @@
+import "./TeacherDashboard.css";
 import { useEffect, useState } from "react";
 
 function TeacherDashboard() {
@@ -133,7 +134,7 @@ function TeacherDashboard() {
     };
 
     return (
-        <div style={styles.page}>
+        <div className="teacher-dashboard-page" style={styles.page}>
 
             <aside style={styles.sidebar}>
 

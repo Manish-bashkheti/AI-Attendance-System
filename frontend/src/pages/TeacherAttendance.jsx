@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./TeacherAttendance.css";
 
 const API_BASE_URL = "http://localhost:8080";
 
@@ -432,10 +433,10 @@ function TeacherAttendance() {
   };
 
   return (
-    <div style={styles.page}>
+    <div className="ta-page" style={styles.page}>
       {/* ================= SIDEBAR ================= */}
 
-      <aside style={styles.sidebar}>
+      <aside className="ta-sidebar" style={styles.sidebar}>
         <div style={styles.logoArea}>
           <div style={styles.logoIcon}>AI</div>
 
@@ -519,10 +520,10 @@ function TeacherAttendance() {
 
       {/* ================= MAIN ================= */}
 
-      <main style={styles.main}>
+      <main className="ta-main" style={styles.main}>
         {/* HEADER */}
 
-        <header style={styles.header}>
+        <header className="ta-header" style={styles.header}>
           <div>
             <button onClick={goDashboard} style={styles.backButton}>
               ← Back to Dashboard
@@ -566,7 +567,7 @@ function TeacherAttendance() {
 
         {/* ================= CURRENT CLASS ================= */}
 
-        <section style={styles.classCard}>
+        <section className="ta-class-card" style={styles.classCard}>
           <div style={styles.classLeft}>
             <div style={styles.classIcon}>📚</div>
 
@@ -624,7 +625,7 @@ function TeacherAttendance() {
         {/* ================= CLASS SELECTOR ================= */}
 
         {!session && todayClasses.length > 0 && (
-          <section style={styles.selectorCard}>
+          <section className="ta-selector-card" style={styles.selectorCard}>
             <div style={styles.sectionHeader}>
               <div>
                 <h2 style={styles.sectionTitle}>Today's Classes</h2>
@@ -636,7 +637,7 @@ function TeacherAttendance() {
               </div>
             </div>
 
-            <div style={styles.classGrid}>
+            <div className="ta-class-grid" style={styles.classGrid}>
               {todayClasses.map((item) => {
                 const current = findCurrentClass(todayClasses);
 
@@ -706,9 +707,9 @@ function TeacherAttendance() {
      {/* ================= ATTENDANCE ================= */}
 
 {session && !showPreview && (
-  <section style={styles.attendanceCard}>
+  <section className="ta-attendance-card" style={styles.attendanceCard}>
     <div style={styles.attendanceHeader}>
-      <div style={styles.cameraContainer}>
+      <div className="ta-camera-container" style={styles.cameraContainer}>
         <img
           src="http://localhost:5001/video_feed"
           alt="AI Processed Camera"
@@ -738,7 +739,7 @@ function TeacherAttendance() {
 
             {/* STATS */}
 
-            <div style={styles.statsGrid}>
+            <div className="ta-stats-grid" style={styles.statsGrid}>
               <div style={styles.statCard}>
                 <span style={styles.statLabel}>TOTAL STUDENTS</span>
 
@@ -779,7 +780,7 @@ function TeacherAttendance() {
                 No students are enrolled in this class.
               </div>
             ) : (
-              <div style={styles.studentTableWrapper}>
+              <div className="ta-table-wrapper" style={styles.studentTableWrapper}>
                 <table style={styles.studentTable}>
                   <thead>
                     <tr>
@@ -870,7 +871,7 @@ function TeacherAttendance() {
 
             {/* FINISH */}
 
-            <div style={styles.finishArea}>
+            <div className="ta-finish-area" style={styles.finishArea}>
               <div>
                 <strong>Ready to finish?</strong>
 
@@ -894,7 +895,7 @@ function TeacherAttendance() {
         {/* ================= PREVIEW ================= */}
 
         {showPreview && session && (
-          <section style={styles.previewCard}>
+          <section className="ta-preview-card" style={styles.previewCard}>
             <div style={styles.previewHeader}>
               <div>
                 <div style={styles.previewCheck}>✓</div>
@@ -933,7 +934,7 @@ function TeacherAttendance() {
 
             {/* PREVIEW TABLE */}
 
-            <div style={styles.studentTableWrapper}>
+            <div className="ta-table-wrapper" style={styles.studentTableWrapper}>
               <table style={styles.studentTable}>
                 <thead>
                   <tr>
@@ -979,7 +980,7 @@ function TeacherAttendance() {
 
             {/* SAVE AREA */}
 
-            <div style={styles.saveArea}>
+            <div className="ta-save-area" style={styles.saveArea}>
               <div>
                 <strong>Verify before saving</strong>
 

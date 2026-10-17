@@ -31,8 +31,16 @@ STUDENTS_FOLDER = os.path.join(
 
 BACKEND_URL = "http://localhost:8080/attendance"
 
-# Mobile camera snapshot endpoint
-CAMERA_URL = "http://172.21.138.159:8080/shot.jpg"
+# Mobile camera snapshot endpoint.
+# Priority: CAMERA_URL environment variable -> camera_url.txt -> previous default.
+DEFAULT_CAMERA_URL = "http://192.168.31.167:8080/shot.jpg"
+CAMERA_URL_FILE = os.path.join(BASE_DIR, "camera_url.txt")
+CAMERA_URL = os.environ.get("CAMERA_URL", "").strip()
+if not CAMERA_URL and os.path.isfile(CAMERA_URL_FILE):
+    with open(CAMERA_URL_FILE, "r", encoding="utf-8") as camera_file:
+        CAMERA_URL = camera_file.read().strip()
+if not CAMERA_URL:
+    CAMERA_URL = DEFAULT_CAMERA_URL
 
 registered_students = {}
 present_students = set()
@@ -61,7 +69,7 @@ class VideoStreamHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            while True:
+            while not stop_event.is_set():
                 with frame_lock:
                     frame_bytes = latest_jpeg
 
@@ -367,32 +375,31 @@ print(
 
 
 # --------------------------------------------------
-# Mobile camera connection
+# Start processed stream and keep retrying camera
 # --------------------------------------------------
 
 print()
-print("Connecting to mobile camera...")
+print("Starting mobile AI face recognition...")
 print(f"Camera URL: {CAMERA_URL}")
+print("If the camera is offline or its IP changed, update camera_url.txt.")
 
-try:
-    with urllib.request.urlopen(CAMERA_URL, timeout=10) as camera_response:
-        camera_response.read(1)
-    print("Mobile camera connected successfully.")
-
-except Exception as exception:
-
-    print("Could not connect to mobile camera.")
-    print(f"Error: {exception}")
-    exit()
-
-
-print()
-print("Mobile AI face recognition started.")
-print("Press 'q' to quit.")
 signal.signal(signal.SIGINT, request_shutdown)
 if hasattr(signal, "SIGTERM"):
     signal.signal(signal.SIGTERM, request_shutdown)
+
+# Publish a useful placeholder immediately so the dashboard can connect
+# even while the mobile camera is starting or temporarily unavailable.
+placeholder = np.zeros((480, 854, 3), dtype=np.uint8)
+cv2.putText(placeholder, "Waiting for mobile camera...", (40, 220),
+            cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
+cv2.putText(placeholder, "Check camera_url.txt and keep the phone on the same Wi-Fi",
+            (40, 270), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (180, 200, 255), 1, cv2.LINE_AA)
+placeholder_ok, placeholder_jpeg = cv2.imencode(".jpg", placeholder)
+if placeholder_ok:
+    latest_jpeg = placeholder_jpeg.tobytes()
+
 stream_server = start_video_stream_server()
+print("Processed stream is ready; waiting for camera frames...")
 
 
 # --------------------------------------------------
@@ -422,11 +429,12 @@ while not stop_event.is_set():
     except Exception as exception:
 
         print(
-            f"Failed to receive mobile camera frame: "
-            f"{exception}"
+            f"Camera unavailable at {CAMERA_URL}: {exception}. "
+            "Retrying in 2 seconds..."
         )
 
-        time.sleep(1)
+        # Keep the stream server alive while the camera reconnects.
+        time.sleep(2)
         continue
 
 

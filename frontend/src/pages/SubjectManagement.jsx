@@ -1,3 +1,4 @@
+import "./AdminManagement.css";
 import { useEffect, useState } from "react";
 
 const API_BASE_URL = "http://localhost:8080";
@@ -163,7 +164,7 @@ function SubjectManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="admin-management-page min-h-screen bg-slate-950 text-white">
 
       {/* Header */}
       <header className="border-b border-slate-800 bg-slate-900/80">

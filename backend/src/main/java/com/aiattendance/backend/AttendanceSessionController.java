@@ -29,13 +29,40 @@ public class AttendanceSessionController {
         this.attendanceSessionService = attendanceSessionService;
     }
 
+    private Path resolveAiDirectory() throws IOException {
+        String configuredDirectory = System.getenv("AI_SERVER_DIR");
+        if (configuredDirectory != null && !configuredDirectory.isBlank()) {
+            Path configured = Paths.get(configuredDirectory).toAbsolutePath().normalize();
+            if (configured.resolve("mobile_face_recognition.py").toFile().isFile()) {
+                return configured;
+            }
+            throw new IOException("AI_SERVER_DIR does not contain mobile_face_recognition.py: " + configured);
+        }
+
+        Path workingDirectory = Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize();
+        Path candidate = workingDirectory.resolve("ai-server");
+        if (candidate.resolve("mobile_face_recognition.py").toFile().isFile()) {
+            return candidate;
+        }
+
+        Path folderName = workingDirectory.getFileName();
+        if (folderName != null && "backend".equalsIgnoreCase(folderName.toString())) {
+            candidate = workingDirectory.getParent().resolve("ai-server");
+            if (candidate.resolve("mobile_face_recognition.py").toFile().isFile()) {
+                return candidate;
+            }
+        }
+
+        throw new IOException(
+                "Could not find ai-server. Set AI_SERVER_DIR or run backend from the project folder/backend folder.");
+    }
+
     private synchronized void startAIProcess() throws IOException {
         if (aiProcess != null && aiProcess.isAlive()) {
             return;
         }
 
-        Path aiDirectory = Paths.get(
-                "C:\\Users\\manis\\AI-attendence-System\\ai-server");
+        Path aiDirectory = resolveAiDirectory();
 
         Path python = aiDirectory.resolve("venv")
                 .resolve("Scripts").resolve("python.exe");
@@ -56,6 +83,21 @@ public class AttendanceSessionController {
                 aiDirectory.resolve("ai-server.log").toFile()));
 
         aiProcess = builder.start();
+
+        try {
+            // Catch immediate startup failures without waiting for the camera feed.
+            if (aiProcess.waitFor(1200, TimeUnit.MILLISECONDS)) {
+                int exitCode = aiProcess.exitValue();
+                aiProcess = null;
+                throw new IOException(
+                        "AI process stopped during startup (exit code " + exitCode
+                                + "). Check ai-server\\ai-server.log.");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            stopAIProcess();
+            throw new IOException("Interrupted while starting the AI process.", exception);
+        }
     }
 
     private synchronized void stopAIProcess() {
@@ -82,17 +124,20 @@ public class AttendanceSessionController {
             @RequestParam Integer teacherId) {
 
         try {
+            // Start the AI service first. The Python process waits for an active
+            // session and keeps the video endpoint alive while the camera reconnects.
+            startAIProcess();
+
             AttendanceSession session =
                     attendanceSessionService.startSession(
                             dayOfWeek,
                             LocalTime.parse(time),
                             teacherId);
 
-            startAIProcess();
-
             return ResponseEntity.ok(session);
 
         } catch (RuntimeException | IOException exception) {
+            // Do not leave a Python process running if session creation failed.
             stopAIProcess();
 
             return ResponseEntity

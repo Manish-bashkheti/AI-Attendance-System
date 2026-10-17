@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+
+/* Shared premium styling for all Admin management pages. Functional JSX/API logic is unchanged. */
+.admin-management-page {
+  --am-ink: #202943; --am-muted: #77839a; --am-line: #e7ebf3; --am-paper: #f6f7fb;
+  box-sizing: border-box; min-height: 100vh; padding-bottom: 40px;
+  background: var(--am-paper) !important; color: var(--am-ink) !important;
+  font-family: 'DM Sans', sans-serif !important; font-size: 14px;
+}
+.admin-management-page *, .admin-management-page *::before, .admin-management-page *::after { box-sizing: border-box; }
+.admin-management-page header.border-b { background: #fff !important; border-color: var(--am-line) !important; box-shadow: 0 3px 14px rgba(25,35,60,.025); }
+.admin-management-page header .max-w-7xl { max-width: 1500px; padding: 25px clamp(18px, 3vw, 42px) 22px !important; }
+.admin-management-page main.max-w-7xl { max-width: 1500px; padding: 27px clamp(18px, 3vw, 42px) 38px !important; }
+.admin-management-page h1, .admin-management-page h2, .admin-management-page h3 { color: #202943 !important; font-family: 'Manrope','DM Sans',sans-serif !important; letter-spacing: -.035em; }
+.admin-management-page h1 { font-size: clamp(25px, 2.4vw, 32px) !important; font-weight: 800 !important; line-height: 1.2; }
+.admin-management-page h2 { font-size: 20px !important; font-weight: 800 !important; }
+.admin-management-page p { line-height: 1.6; }
+.admin-management-page .text-white { color: #202943 !important; }
+.admin-management-page .text-slate-300, .admin-management-page .text-slate-400, .admin-management-page .text-slate-500 { color: #7d879c !important; }
+.admin-management-page .bg-slate-950 { background: var(--am-paper) !important; }
+.admin-management-page .bg-slate-900, .admin-management-page .bg-slate-900\/80 { background: #fff !important; }
+.admin-management-page .border-slate-800, .admin-management-page .border-slate-700 { border-color: var(--am-line) !important; }
+.admin-management-page .max-w-7xl > .flex.flex-col.md\:flex-row { margin-bottom: 22px; }
+.admin-management-page input:not([type=checkbox]):not([type=radio]), .admin-management-page select, .admin-management-page textarea {
+  min-height: 44px; width: 100%; border: 1px solid #e1e6f0 !important; border-radius: 11px !important;
+  background: #fbfcff !important; color: #27324b !important; padding: 11px 13px !important;
+  font: 500 13px 'DM Sans',sans-serif !important; outline: none; transition: border-color .18s, box-shadow .18s, background .18s;
+}
+.admin-management-page input::placeholder, .admin-management-page textarea::placeholder { color: #a1aabc !important; }
+.admin-management-page input:focus, .admin-management-page select:focus, .admin-management-page textarea:focus { border-color: #8a80ed !important; box-shadow: 0 0 0 4px rgba(125,112,230,.12) !important; background: #fff !important; }
+.admin-management-page input:disabled { background: #f0f2f7 !important; color: #8b95a8 !important; }
+.admin-management-page label { display: block; color: #59657d !important; font-size: 12px !important; font-weight: 700 !important; margin-bottom: 7px !important; }
+.admin-management-page button { transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease; }
+.admin-management-page button:focus-visible { outline: 3px solid rgba(126,112,230,.3); outline-offset: 2px; }
+.admin-management-page button.bg-blue-600, .admin-management-page button.bg-blue-500 { background: linear-gradient(135deg,#7467e8,#5b58d9) !important; border: 1px solid #6c61df !important; color: #fff !important; box-shadow: 0 6px 15px rgba(98,88,216,.17); }
+.admin-management-page button.bg-blue-600:hover, .admin-management-page button.bg-blue-500:hover { transform: translateY(-1px); box-shadow: 0 9px 20px rgba(98,88,216,.23); }
+.admin-management-page button.bg-red-600 { background: #fff0f0 !important; color: #c04454 !important; border: 1px solid #ffd9de !important; }
+.admin-management-page button.bg-red-600:hover { background: #ffe5e8 !important; }
+.admin-management-page button.bg-slate-800, .admin-management-page button.bg-slate-700 { background: #f1f3f9 !important; border: 1px solid #e5e8f1 !important; color: #4c5871 !important; }
+.admin-management-page button.bg-slate-800:hover, .admin-management-page button.bg-slate-700:hover { background: #e9ecf5 !important; }
+.admin-management-page .rounded-2xl, .admin-management-page .rounded-xl { border-radius: 16px !important; }
+.admin-management-page .shadow-2xl, .admin-management-page .shadow-xl { box-shadow: 0 22px 65px rgba(21,32,57,.18) !important; }
+.admin-management-page .bg-slate-900.border, .admin-management-page form.bg-white, .admin-management-page .bg-white.rounded-xl, .admin-management-page .bg-slate-900.rounded-2xl, .admin-management-page .bg-slate-900.border.rounded-2xl {
+  border: 1px solid #e7eaf2 !important; box-shadow: 0 8px 24px rgba(28,39,66,.045) !important;
+}
+.admin-management-page table { width: 100%; border-collapse: separate !important; border-spacing: 0; font-size: 13px; }
+.admin-management-page .overflow-x-auto { border-radius: 15px; }
+.admin-management-page thead, .admin-management-page thead.bg-slate-800\/50, .admin-management-page thead.bg-gray-100 { background: #f4f5fb !important; }
+.admin-management-page th { color: #68748b !important; font-size: 10px !important; font-weight: 800 !important; letter-spacing: .075em; text-transform: uppercase; border-bottom: 1px solid #e7eaf2 !important; white-space: nowrap; }
+.admin-management-page td { color: #47536c !important; border-bottom: 1px solid #edf0f6 !important; vertical-align: middle; }
+.admin-management-page tbody tr { background: #fff; transition: background .15s ease; }
+.admin-management-page tbody tr:hover { background: #fafaff !important; }
+.admin-management-page tbody tr:last-child td { border-bottom: 0 !important; }
+.admin-management-page th, .admin-management-page td { padding: 15px 18px !important; }
+.admin-management-page .fixed.inset-0 { background: rgba(18,25,45,.48) !important; backdrop-filter: blur(7px); padding: 18px !important; }
+.admin-management-page .fixed.inset-0 > div, .admin-management-page .fixed.inset-0 form, .admin-management-page .fixed.inset-0 .bg-slate-900 {
+  background: #fff !important; color: #202943 !important; border: 1px solid #e8ebf3 !important; border-radius: 20px !important;
+}
+.admin-management-page .fixed.inset-0 h2, .admin-management-page .fixed.inset-0 h3 { color: #202943 !important; }
+.admin-management-page .fixed.inset-0 .text-slate-300, .admin-management-page .fixed.inset-0 .text-slate-400 { color: #77839a !important; }
+.admin-management-page .fixed.inset-0 .bg-slate-800 { background: #f4f6fb !important; }
+.admin-management-page .fixed.inset-0 .border-slate-800, .admin-management-page .fixed.inset-0 .border-slate-700 { border-color: #e5e9f2 !important; }
+.admin-management-page .bg-red-100 { background: #fff0f1 !important; color: #b9384c !important; border: 1px solid #ffd9df; }
+.admin-management-page .bg-green-100 { background: #eafaf3 !important; color: #16815e !important; border: 1px solid #c9f0df; }
+.admin-management-page .bg-emerald-500\/10 { background: #e8faf2 !important; color: #13835f !important; }
+.admin-management-page .bg-red-500\/10 { background: #fff0f1 !important; color: #bd4250 !important; }
+.admin-management-page .absolute.right-6.top-14 { background: #fff !important; border-color: #e7eaf2 !important; box-shadow: 0 14px 36px rgba(24,34,57,.16) !important; }
+.admin-management-page .absolute.right-6.top-14 button { color: #4e5a73 !important; }
+.admin-management-page .absolute.right-6.top-14 button:hover { background: #f4f5fb !important; }
+.admin-management-page .p-10.text-center { color: #7b869b !important; }
+.admin-management-page .bg-slate-800\/50 { background: #f5f6fb !important; }
+.admin-management-page .bg-slate-800\/60 { background: #f8f9fd !important; border: 1px solid #e8ebf3 !important; }
+.admin-management-page .text-blue-400 { color: #655bd8 !important; }
+.admin-management-page .text-emerald-400 { color: #15936c !important; }
+.admin-management-page .text-red-400 { color: #c44958 !important; }
+.admin-management-page .focus\:border-blue-500:focus { border-color: #8a80ed !important; }
+.admin-management-page .focus\:ring-2:focus { box-shadow: 0 0 0 4px rgba(125,112,230,.12) !important; }
+/* Student page uses a standalone light layout; give its form and table the same visual language. */
+.admin-student-page { max-width: 1500px; margin: 0 auto; padding: 36px clamp(18px,3vw,42px) !important; }
+.admin-student-page > h1 { margin-bottom: 25px !important; }
+.admin-student-page form.bg-white { border: 1px solid #e7eaf2 !important; border-radius: 18px !important; box-shadow: 0 8px 24px rgba(28,39,66,.045) !important; }
+.admin-student-page .bg-white.rounded-xl.shadow { border: 1px solid #e7eaf2 !important; border-radius: 16px !important; box-shadow: 0 8px 24px rgba(28,39,66,.045) !important; }
+.admin-student-page .bg-gray-100 { background: #f4f5fb !important; }
+.admin-student-page button.bg-blue-600 { background: linear-gradient(135deg,#7467e8,#5b58d9) !important; color: white !important; }
+.admin-student-page button.bg-yellow-500 { background: #fff6df !important; color: #9a6a0c !important; border: 1px solid #f3e0ae; }
+.admin-student-page button.bg-red-600 { background: #fff0f0 !important; color: #c04454 !important; border: 1px solid #ffd9de; }
+@media (max-width: 700px) {
+  .admin-management-page header .max-w-7xl, .admin-management-page main.max-w-7xl { padding-left: 16px !important; padding-right: 16px !important; }
+  .admin-management-page .max-w-7xl > .flex.flex-col.md\:flex-row { align-items: stretch; }
+  .admin-management-page table { min-width: 680px; }
+  .admin-management-page .overflow-x-auto { overflow-x: auto; }
+  .admin-management-page .fixed.inset-0 { align-items: flex-start !important; overflow-y: auto !important; }
+  .admin-management-page .fixed.inset-0 form, .admin-management-page .fixed.inset-0 .w-full { max-height: none; margin-top: 8px; }
+  .admin-student-page { padding: 24px 14px !important; }
+  .admin-student-page table { min-width: 650px; }
+}
